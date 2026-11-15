@@ -15,7 +15,7 @@ class ClauditorSettings : PersistentStateComponent<ClauditorSettings.State> {
 
     class State {
         /** Milliseconds before a terminal session is considered unresponsive after user input. */
-        @JvmField var echoTimeoutMs: Int = 3000
+        @JvmField var echoTimeoutMs: Int = 10000
 
         /** Manual override for the claude binary path. Empty string means auto-detect. */
         @JvmField var claudeBinaryPath: String = ""

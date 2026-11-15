@@ -40,3 +40,12 @@ class ProcessHelperTest {
         else assertTrue(!path.contains(";"), path.take(200))
     }
 }
+
+class EchoInputTest {
+    private fun e(s: String) = com.clauditor.terminal.ActivityMonitoringTtyConnector.echoes(s)
+    @org.junit.Test fun typedTextEchoes() { org.junit.Assert.assertTrue(e("a")); org.junit.Assert.assertTrue(e("hello\r")) }
+    @org.junit.Test fun silentInputsDont() {
+        for (s in listOf("\u001b[I", "\u001b[O", "\u001b[Z", "\u001b[A", "\r", "\u007f", "\u0013", "\u001b"))
+            org.junit.Assert.assertFalse(s.toByteArray().joinToString(), e(s))
+    }
+}

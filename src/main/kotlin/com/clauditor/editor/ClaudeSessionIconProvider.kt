@@ -21,7 +21,9 @@ class ClaudeSessionIconProvider : FileIconProvider {
         // text) so the tab keeps a constant width as Claude's state cycles. The badge box
         // is always present — idle paints nothing — so even the badge column never resizes.
         val badge = badgeFor(file.statusGlyph(), error = file.errorState != null)
-        return if (file.isWorktreeSession) RowIcon(CLAUDE_ICON, TREE_ICON, badge)
+        // Tree: the session is working in a worktree now (an EnterWorktree mid-session counts).
+        val inWorktree = file.currentWorktree?.isNotEmpty() ?: file.isWorktreeSession
+        return if (inWorktree) RowIcon(CLAUDE_ICON, TREE_ICON, badge)
         else RowIcon(CLAUDE_ICON, badge)
     }
 

@@ -35,6 +35,8 @@ class ClaudeSessionVirtualFile(
     @Volatile var live: LiveTerminal? = null
     var workingDir: String? = null
     var isWorktreeSession: Boolean = newWorktreeName != null
+    /** The worktree Claude is working in now (from the status line cwd), "" for main, null before the first status. */
+    @Volatile var currentWorktree: String? = null
     var modelId: String? = null
     var modelName: String? = null
     var contextPercent: Double? = null

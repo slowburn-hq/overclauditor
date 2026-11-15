@@ -83,13 +83,13 @@ class ActivityMonitoringTtyConnector(
 
     override fun write(bytes: ByteArray) {
         super.write(bytes)
-        scheduleEchoCheck()
+        if (echoes(String(bytes, Charsets.UTF_8))) scheduleEchoCheck()
         onUserInput?.let { cb -> ApplicationManager.getApplication().invokeLater(cb) }
     }
 
     override fun write(string: String) {
         super.write(string)
-        scheduleEchoCheck()
+        if (echoes(string)) scheduleEchoCheck()
         onUserInput?.let { cb -> ApplicationManager.getApplication().invokeLater(cb) }
     }
 
@@ -151,7 +151,17 @@ class ActivityMonitoringTtyConnector(
         super.close()
     }
 
-    private companion object {
+    companion object {
         const val STARTUP_GRACE_MS = 20_000L
+
+        /**
+         * Whether Claude Code answers [input] with output at once, so silence after it means a
+         * hang. Typed text does (a letter echoes in ~10ms). Escape sequences don't: focus in/out
+         * (sent when the tab gains or loses focus), Shift+Tab, arrows and mouse reports can draw
+         * nothing for seconds or at all, and neither does Enter on an empty box. Measured on
+         * Claude Code 2.1.325; those were the false "unresponsive" warnings.
+         */
+        internal fun echoes(input: String): Boolean =
+            !input.startsWith("\u001b") && input.any { it >= ' ' && it != '\u007f' }
     }
 }

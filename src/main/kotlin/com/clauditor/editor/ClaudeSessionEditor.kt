@@ -1755,6 +1755,7 @@ class ClaudeSessionEditor(
     }
 
     private fun noteWorktree(wt: String) {
+        if (file.currentWorktree != wt) { file.currentWorktree = wt; refreshTabTitle(force = true) }  // the tab's tree icon
         val first = knownWorktree == null
         knownWorktree = wt
         val sid = file.sessionId ?: return

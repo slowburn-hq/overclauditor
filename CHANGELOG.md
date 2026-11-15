@@ -41,6 +41,11 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 - The Commit button is gone; caches moved to the IDE system folder and are removed on uninstall.
 
 ### Fixed
+- False "Session unresponsive" warnings: any input with no output within 3s counted as a hang,
+  but Claude Code draws nothing (or seconds later) for focus in/out, Shift+Tab, arrows and Enter
+  on an empty box. Only typed text (which echoes in ~10ms) arms the check now, after 10s.
+- The tab's tree icon showed only for sessions started as worktree sessions; it now shows while
+  the session is working in a worktree, including after EnterWorktree.
 - Tab titles changed too often: every move between worktrees retitled (and /merge and /push step
   into main and back), as did every new CLI title. Now a title changes only for a worktree the
   session has never been in, the first file edit, a CLI title naming clearly different work (at

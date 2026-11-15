@@ -36,7 +36,7 @@ class ClauditorSettingsConfigurable : Configurable {
     override fun getDisplayName(): String = "Overclauditor"
 
     override fun createComponent(): JComponent {
-        echoTimeoutSpinner = JSpinner(SpinnerNumberModel(3000, 1000, 30000, 500)).apply {
+        echoTimeoutSpinner = JSpinner(SpinnerNumberModel(10000, 1000, 30000, 500)).apply {
             toolTipText = "Milliseconds after user input with no response before marking a session as unresponsive"
         }
 
@@ -137,7 +137,7 @@ class ClauditorSettingsConfigurable : Configurable {
 
     override fun apply() {
         val settings = ClauditorSettings.getInstance()
-        settings.state.echoTimeoutMs = (echoTimeoutSpinner?.value as? Int) ?: 3000
+        settings.state.echoTimeoutMs = (echoTimeoutSpinner?.value as? Int) ?: 10000
         settings.state.claudeBinaryPath = claudeBinaryField?.text?.trim() ?: ""
         settings.state.defaultSessionArgs = defaultArgsField?.text?.trim() ?: ""
         settings.state.envColorterm = envColortermCheckbox?.isSelected ?: false
