@@ -31,3 +31,9 @@ class TitleShapeTest {
             org.junit.Assert.assertFalse(t, ClaudeSessionEditor.unfitTitle(t))
     }
 }
+
+class DrasticChangeTest {
+    @Test fun sameWorkReworded() = org.junit.Assert.assertFalse(ClaudeSessionEditor.drasticChange("Load screen and worktree merge", "Load screen polish"))
+    @Test fun differentWork() = org.junit.Assert.assertTrue(ClaudeSessionEditor.drasticChange("Tripo texture fixes for models", "Plant race classes and concept art"))
+    @Test fun oneSharedWordOfFour() = org.junit.Assert.assertTrue(ClaudeSessionEditor.drasticChange("Tripo texture fixes for models", "Brood egg bountyhunter texture audit"))
+}

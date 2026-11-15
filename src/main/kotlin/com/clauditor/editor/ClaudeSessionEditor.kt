@@ -1690,8 +1690,8 @@ class ClaudeSessionEditor(
     // `claude --name` launch wrote one into every session, so a tab kept its launch name for
     // good. Now the title is pinned (TitleStore) and moves only when:
     //  - the user runs /rename (always wins; no automatic changes after it),
-    //  - the CLI writes a new ai-title of its own (rare, at big turns),
-    //  - the session moves into a different worktree, or
+    //  - the CLI writes a new ai-title naming clearly different work (drasticChange),
+    //  - the session enters a worktree it has never been in (not back to main or an old one), or
     //  - the session first writes or edits a file (a question turned into work).
     // The last two take the status line's session summary (2-5 words) as the new title.
 
@@ -1747,8 +1747,9 @@ class ClaudeSessionEditor(
             }
             s?.renamedTitle != null && s.renamedTitle != e.renamed ->
                 store.put(sid, e.copy(title = s.renamedTitle, renamed = s.renamedTitle))
+            // The CLI retitles rarely; follow it only when it names clearly different work.
             e.renamed == null && s?.aiTitle != null && s.aiTitle != e.aiTitle && !unfitTitle(s.aiTitle) ->
-                store.put(sid, e.copy(title = s.aiTitle, aiTitle = s.aiTitle))
+                store.put(sid, if (drasticChange(e.title, s.aiTitle)) e.copy(title = s.aiTitle, aiTitle = s.aiTitle) else e.copy(aiTitle = s.aiTitle))
         }
         applyTitle(store.get(sid)!!.title)
     }
@@ -1763,8 +1764,10 @@ class ClaudeSessionEditor(
             return
         }
         if (e.worktree == wt) return
-        com.clauditor.services.TitleStore.put(sid, e.copy(worktree = wt))
-        retitleEvent()
+        // /merge and /push step into main and back: only a worktree never seen before is new work.
+        val seen = e.worktrees ?: listOf(e.worktree)
+        com.clauditor.services.TitleStore.put(sid, e.copy(worktree = wt, worktrees = (seen + wt).distinct()))
+        if (wt.isNotEmpty() && wt !in seen) retitleEvent()
     }
 
     private fun noteWorkStarted() {
@@ -2142,6 +2145,19 @@ class ClaudeSessionEditor(
         internal fun unfitTitle(text: String): Boolean {
             val t = text.trim()
             return t.isEmpty() || looksLikeError(t) || !isTitleShaped(t)
+        }
+
+        private val STOP = setOf("the", "and", "for", "with", "from", "into", "onto", "fix", "fixes", "fixing", "add", "update")
+
+        private fun contentWords(t: String): Set<String> =
+            t.lowercase().split(Regex("[^a-z0-9]+")).filter { it.length >= 3 && it !in STOP }.map { it.removeSuffix("s") }.toSet()
+
+        /** Whether [new] names clearly different work from [current]: at most a third of the smaller title's words shared. */
+        internal fun drasticChange(current: String, new: String): Boolean {
+            val a = contentWords(current)
+            val b = contentWords(new)
+            if (a.isEmpty() || b.isEmpty()) return true
+            return (a intersect b).size.toDouble() / minOf(a.size, b.size) <= 1.0 / 3
         }
 
         internal fun isTitleShaped(t: String): Boolean =

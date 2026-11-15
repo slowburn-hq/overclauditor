@@ -9,8 +9,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The title each session's tab and list row show, pinned so it changes only on a few events
- * (see ClaudeSessionEditor.retitle): a new worktree, the first file write, an explicit
- * /rename, or a new title from the CLI itself. Kept in the IDE's system folder (OcPaths).
+ * (see ClaudeSessionEditor's title section): a worktree the session hasn't been in before, the
+ * first file write, an explicit /rename, or a CLI title for clearly different work. Kept in the
+ * IDE's system folder (OcPaths).
  */
 object TitleStore {
     data class Entry(
@@ -22,7 +23,9 @@ object TitleStore {
         /** The CLI's ai-title at pin time, so a NEW one from the CLI can be noticed. */
         val aiTitle: String? = null,
         /** The /rename title at pin time, likewise. */
-        val renamed: String? = null
+        val renamed: String? = null,
+        /** Every worktree the session has been in: going back to one (or to main) never retitles. Null in old entries. */
+        val worktrees: List<String>? = null
     )
 
     private val file: Path by lazy { com.clauditor.util.OcPaths.dataDir.resolve("titles.json") }

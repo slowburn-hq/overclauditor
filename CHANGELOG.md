@@ -41,6 +41,10 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 - The Commit button is gone; caches moved to the IDE system folder and are removed on uninstall.
 
 ### Fixed
+- Tab titles changed too often: every move between worktrees retitled (and /merge and /push step
+  into main and back), as did every new CLI title. Now a title changes only for a worktree the
+  session has never been in, the first file edit, a CLI title naming clearly different work (at
+  most a third of the words shared), or /rename.
 - Restored tabs came back in the order they were first opened, not the order you'd dragged them
   into; the saved list now follows the tab order.
 - A new session's tab could stay "New Session" for good: the tab was tied to its Claude session
