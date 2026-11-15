@@ -23,13 +23,15 @@ class ClaudeSessionIconProvider : FileIconProvider {
         val badge = badgeFor(file.statusGlyph(), error = file.errorState != null)
         // Tree: the session is working in a worktree now (an EnterWorktree mid-session counts).
         val inWorktree = file.currentWorktree?.isNotEmpty() ?: file.isWorktreeSession
-        return if (inWorktree) RowIcon(CLAUDE_ICON, TREE_ICON, badge)
+        return if (inWorktree) RowIcon(CLAUDE_ICON, TAB_TREE_ICON, badge)
         else RowIcon(CLAUDE_ICON, badge)
     }
 
     companion object {
         private val CLAUDE_ICON = IconLoader.getIcon("/icons/claude.svg", ClaudeSessionIconProvider::class.java)
         val TREE_ICON: Icon = IconLoader.getIcon("/icons/worktree.svg", ClaudeSessionIconProvider::class.java)
+        /** Half-size, 8px wide: the tab's "in a worktree" mark. */
+        private val TAB_TREE_ICON: Icon = IconLoader.getIcon("/icons/worktree-tab.svg", ClaudeSessionIconProvider::class.java)
 
         // One shared icon instance per glyph (colors are read from the component at paint
         // time, so instances are safe to reuse across tabs). Empty string = idle placeholder.

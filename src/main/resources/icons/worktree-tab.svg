@@ -1,0 +1,7 @@
+<svg width="8" height="16" viewBox="0 0 8 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- a half-size tree, centred: the tab's "in a worktree" mark -->
+  <rect x="3.5" y="10" width="1" height="2.5" rx="0.25" fill="#6B7280"/>
+  <path d="M4 4.5L6.25 7.25H1.75L4 4.5Z" fill="#5B9E5B"/>
+  <path d="M4 5.75L6.5 8.75L6.5 8.75H1.5L4 5.75Z" fill="#4A8C4A"/>
+  <path d="M4 6.75L6.75 10H1.25L4 6.75Z" fill="#4A8C4A"/>
+</svg>
