@@ -12,7 +12,7 @@ import com.intellij.openapi.project.Project
     storages = [Storage(StoragePathMacros.WORKSPACE_FILE)]
 )
 @Service(Service.Level.PROJECT)
-class OpenSessionsPersistence : PersistentStateComponent<OpenSessionsPersistence.State> {
+class OpenSessionsPersistence(private val project: Project) : PersistentStateComponent<OpenSessionsPersistence.State> {
 
     class State {
         @JvmField
@@ -21,7 +21,19 @@ class OpenSessionsPersistence : PersistentStateComponent<OpenSessionsPersistence
 
     private var myState = State()
 
-    override fun getState(): State = myState
+    /** Saved in the tabs' current order (drags included), so a restart reopens them as they were. */
+    override fun getState(): State {
+        val order = tabOrder()
+        if (order.isNotEmpty()) myState.sessionIds = ordered(myState.sessionIds, order).toMutableList()
+        return myState
+    }
+
+    private fun tabOrder(): List<String> = try {
+        val ex = com.intellij.openapi.fileEditor.ex.FileEditorManagerEx.getInstanceEx(project)
+        ex.windows.flatMap { w -> w.fileList }
+            .filterIsInstance<com.clauditor.editor.ClaudeSessionVirtualFile>()
+            .mapNotNull { it.sessionId }
+    } catch (_: Exception) { emptyList() }
 
     override fun loadState(state: State) {
         myState = state
@@ -40,6 +52,12 @@ class OpenSessionsPersistence : PersistentStateComponent<OpenSessionsPersistence
     fun getAll(): List<String> = myState.sessionIds.toList()
 
     companion object {
+        /** [ids] sorted by their position in [tabOrder]; ids with no open tab keep their place at the end. */
+        internal fun ordered(ids: List<String>, tabOrder: List<String>): List<String> {
+            val pos = tabOrder.withIndex().associate { it.value to it.index }
+            return ids.sortedBy { pos[it] ?: Int.MAX_VALUE }
+        }
+
         fun getInstance(project: Project): OpenSessionsPersistence =
             project.getService(OpenSessionsPersistence::class.java)
     }
