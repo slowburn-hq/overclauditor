@@ -152,6 +152,12 @@ class TabBarNewSessionActivity : ProjectActivity {
             project.messageBus.connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER,
                 object : FileEditorManagerListener {
                     override fun fileOpened(source: FileEditorManager, file: VirtualFile) = installAll(project)
+                    override fun fileClosed(source: FileEditorManager, file: VirtualFile) = installAll(project)
+                })
+            // The IDE re-applies its one-row/multi-row setting to every strip when settings change.
+            ApplicationManager.getApplication().messageBus.connect(project as com.intellij.openapi.Disposable)
+                .subscribe(com.intellij.ide.ui.UISettingsListener.TOPIC, com.intellij.ide.ui.UISettingsListener {
+                    ApplicationManager.getApplication().invokeLater({ installAll(project) }, project.disposed)
                 })
         }
     }
@@ -160,6 +166,28 @@ class TabBarNewSessionActivity : ProjectActivity {
         // Editor-window tab internals aren't stable API: if a platform version changes them,
         // lose this convenience rather than break startup or every file open.
         try { install(project) } catch (_: Throwable) {}
+        try { wrapSessionStrips(project) } catch (_: Throwable) {}
+    }
+
+    /**
+     * Session tabs wrap onto more rows when they run out of space; other tab strips keep the
+     * IDE's own setting (Editor Tabs > Show tabs in one row). A strip holding any session tab
+     * wraps; once it holds none it goes back to the IDE setting.
+     */
+    private fun wrapSessionStrips(project: Project) {
+        val oneRow = com.intellij.ide.ui.UISettings.getInstance().scrollTabLayoutInEditor
+        for (window in FileEditorManagerEx.getInstanceEx(project).windows) {
+            val tabs = window.tabbedPane.tabs as? JBTabs ?: continue
+            val c: JComponent = tabs.component
+            val hasSession = window.fileList.any { it is ClaudeSessionVirtualFile }
+            if (hasSession) {
+                tabs.presentation.setSingleRow(false)
+                c.putClientProperty(WRAPPED, true)
+            } else if (c.getClientProperty(WRAPPED) == true) {
+                tabs.presentation.setSingleRow(oneRow)
+                c.putClientProperty(WRAPPED, null)
+            }
+        }
     }
 
     private fun install(project: Project) {
@@ -193,6 +221,7 @@ class TabBarNewSessionActivity : ProjectActivity {
 
     private companion object {
         const val INSTALLED = "overclauditor.tabBarNewSession"
+        const val WRAPPED = "overclauditor.wrapped"
     }
 }
 
