@@ -50,6 +50,10 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 - The Commit button is gone; caches moved to the IDE system folder and are removed on uninstall.
 
 ### Fixed
+- The "work started" retitle took the summary of the latest request, which can be a side job
+  (another session asking for a fix): "Asset Bench moved to localhost" on a HUD session. It now
+  prefers the CLI's title for the whole session, and the built-in summary skips messages from
+  other sessions.
 - A session started inside a worktree (its transcript lives under the worktree) was missing
   from the Sessions list and the Resume menu, listed only in Worktrees. Both list every session now.
 - False "Session unresponsive" warnings: any input with no output within 3s counted as a hang,

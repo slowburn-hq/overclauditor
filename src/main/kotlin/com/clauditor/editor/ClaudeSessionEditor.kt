@@ -1841,16 +1841,20 @@ class ClaudeSessionEditor(
         val e = file.sessionId?.let { com.clauditor.services.TitleStore.get(it) } ?: return
         if (e.renamed != null) return
         retitlePendingSince = System.currentTimeMillis()
-        if (summaryGist.isNotEmpty() && retitlePendingSince - summaryMtime < 120_000) pinGist()
+        val cliTitle = e.aiTitle?.takeUnless(::unfitTitle)
+        if (cliTitle != null || summaryGist.isNotEmpty() && retitlePendingSince - summaryMtime < 120_000) pinGist()
     }
 
     private fun pinGist() {
         retitlePendingSince = 0
         val sid = file.sessionId ?: return
         val e = com.clauditor.services.TitleStore.get(sid) ?: return
-        if (summaryGist.isEmpty() || e.renamed != null || e.worktree.isNotEmpty() || unfitTitle(summaryGist)) return
-        com.clauditor.services.TitleStore.put(sid, e.copy(title = summaryGist))
-        applyTitle(summaryGist)
+        if (e.renamed != null || e.worktree.isNotEmpty()) return
+        // The summary covers the LATEST request, which may be a side job (another session asking
+        // for a fix): the CLI's own title covers the whole session, so it wins when it fits.
+        val title = e.aiTitle?.takeUnless(::unfitTitle) ?: summaryGist.takeUnless { it.isEmpty() || unfitTitle(it) } ?: return
+        com.clauditor.services.TitleStore.put(sid, e.copy(title = title))
+        applyTitle(title)
         syncName()
         ClaudeSessionService.getInstance(project).refresh()  // the list row shows the pinned title too
     }

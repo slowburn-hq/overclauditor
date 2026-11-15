@@ -81,3 +81,8 @@ class SessionNameTest {
         kotlin.test.assertFalse(ClaudeSessionEditor.isNameFor(null, "comet-art"))
     }
 }
+
+class WorktreeNameTest {
+    @Test fun `the worktree folder names the session, not the branch`() =
+        assertEquals("hull3d-test", ClaudeSessionEditor.worktreeOf("/Users/x/RiderProjects/EmberSkies/.claude/worktrees/hull3d-test/game"))
+}

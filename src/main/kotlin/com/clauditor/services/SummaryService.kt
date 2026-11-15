@@ -122,7 +122,7 @@ object SummaryService {
     private const val TAIL_BYTES = 4L * 1024 * 1024
     private const val RECENT = 6
     private const val FORMAT = "v1\n"
-    private val WRAPPER = Regex("^</?(command-|local-command|task-notification|bash-|system-reminder)")
+    private val WRAPPER = Regex("^</?(command-|local-command|task-notification|bash-|system-reminder|cross-session-message)")
     private val PROMPT = """
         Below are the recent user messages from a coding-assistant session. Write a two-line status line.
 
