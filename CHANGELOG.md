@@ -6,6 +6,8 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 ## 0.7.30-oc
 
 ### Added
+- Right-click the branch name or the summary text on the toolbar to copy it (the whole summary,
+  the green topic or the teal what-to-test line).
 - Clicking a usage bar (5h, 7d, per-model) opens a menu with "Open Claude Usage Page"
   (https://claude.ai/settings/usage).
 - Model and effort dropdowns on the toolbar, colour-coded, sized to their options; models show

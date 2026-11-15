@@ -523,6 +523,10 @@ class ClaudeSessionEditor(
     }
 
     private fun createToolbar(gitPanel: JComponent?): JComponent {
+        copyMenu(summaryLabel) {
+            listOf("Copy Summary" to listOf(summaryGist, summaryTest).filter { it.isNotBlank() }.joinToString(" - "),
+                "Copy Topic (green)" to summaryGist, "Copy What to Test (teal)" to summaryTest)
+        }
         val leftPanel = fixedRow()
 
         leftPanel.add(createModelDropdown())
@@ -653,6 +657,7 @@ class ClaudeSessionEditor(
             border = JBUI.Borders.empty(0, 4)
             foreground = UIManager.getColor("Label.disabledForeground")
         }
+        for (c in listOf(branchLabel, branchName)) copyMenu(c) { listOf("Copy Branch Name" to branchName.text) }
 
         val gitRefreshInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
         fun refresh() {
@@ -1659,6 +1664,29 @@ class ClaudeSessionEditor(
         }
         usagePanel.revalidate()
         usagePanel.repaint()
+    }
+
+    /** Right-click [c] for "Copy" items: each a label and the text it copies (blank ones are left out). */
+    private fun copyMenu(c: JComponent, items: () -> List<Pair<String, String>>) {
+        c.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mousePressed(e: java.awt.event.MouseEvent) = maybeShow(e)
+            override fun mouseReleased(e: java.awt.event.MouseEvent) = maybeShow(e)
+            private fun maybeShow(e: java.awt.event.MouseEvent) {
+                if (!e.isPopupTrigger) return
+                val actions = items().filter { it.second.isNotBlank() }.map { (label, text) ->
+                    object : com.intellij.openapi.project.DumbAwareAction(label, null, AllIcons.Actions.Copy) {
+                        override fun actionPerformed(ev: com.intellij.openapi.actionSystem.AnActionEvent) =
+                            com.intellij.openapi.ide.CopyPasteManager.getInstance().setContents(java.awt.datatransfer.StringSelection(text.trim()))
+                    }
+                }
+                if (actions.isEmpty()) return
+                com.intellij.openapi.ui.popup.JBPopupFactory.getInstance()
+                    .createActionGroupPopup(null, com.intellij.openapi.actionSystem.DefaultActionGroup(actions),
+                        com.intellij.openapi.actionSystem.DataContext.EMPTY_CONTEXT,
+                        com.intellij.openapi.ui.popup.JBPopupFactory.ActionSelectionAid.SPEEDSEARCH, false)
+                    .show(com.intellij.ui.awt.RelativePoint(e))
+            }
+        })
     }
 
     /** Click on a usage bar: a one-item menu to open the plan's usage page on claude.ai. */
