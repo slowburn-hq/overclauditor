@@ -40,6 +40,7 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
   hasn't been in), else its short task title. The plugin also gives Claude that name (`/rename`,
   sent only while the session is idle at its prompt), so the session's cross-session address in
   ListAgents / SendMessage is `comet-art`, not `emberskies-12`. A user's own /rename still wins.
+  Two open sessions in one worktree get `comet-art` and `comet-art-2`, so each address is unique.
 - Session list loads in the background (Clauditor built it on the UI thread: 16-26 s freezes
   on large histories), parses with a streaming reader (about 2x faster), and keeps a saved
   index so each start reads only new lines.

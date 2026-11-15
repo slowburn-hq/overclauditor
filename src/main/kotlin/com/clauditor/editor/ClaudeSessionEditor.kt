@@ -1770,23 +1770,9 @@ class ClaudeSessionEditor(
             syncName()
             return
         }
-        when {
-            // Pinned before worktree names were titles: a session in a worktree takes its name, once.
-            e.renamed == null && e.named == null && e.worktree.isNotEmpty() && e.title != e.worktree ->
-                store.put(sid, e.copy(title = e.worktree))
-            // A title pinned before the shape check (a summary that came back as a sentence): repair it.
-            e.renamed == null && unfitTitle(e.title) -> {
-                val fix = s?.aiTitle?.takeUnless(::unfitTitle) ?: summaryGist.takeUnless(::unfitTitle)
-                    ?: s?.firstPrompt?.let { com.clauditor.model.shortTitle(it) }?.takeUnless(::unfitTitle)
-                if (fix != null) store.put(sid, e.copy(title = fix))
-            }
-            // A /rename by the user (not the plugin's own, which sets the session's address).
-            s?.renamedTitle != null && s.renamedTitle != e.renamed && s.renamedTitle != e.named ->
-                store.put(sid, e.copy(title = s.renamedTitle, renamed = s.renamedTitle))
-            // The CLI retitles rarely; follow it only when it names clearly different work.
-            e.renamed == null && s?.aiTitle != null && s.aiTitle != e.aiTitle && !unfitTitle(s.aiTitle) ->
-                store.put(sid, if (e.worktree.isEmpty() && drasticChange(e.title, s.aiTitle)) e.copy(title = s.aiTitle, aiTitle = s.aiTitle) else e.copy(aiTitle = s.aiTitle))
-        }
+        val fallback = s?.aiTitle?.takeUnless(::unfitTitle) ?: summaryGist.takeUnless(::unfitTitle)
+            ?: s?.firstPrompt?.let { com.clauditor.model.shortTitle(it) }?.takeUnless(::unfitTitle)
+        store.put(sid, reconcile(e, s?.renamedTitle, s?.aiTitle, fallback))
         applyTitle(store.get(sid)!!.title)
         syncName()
     }
@@ -1801,8 +1787,14 @@ class ClaudeSessionEditor(
      */
     private fun syncName() {
         val e = file.sessionId?.let { com.clauditor.services.TitleStore.get(it) } ?: return
-        if (e.renamed != null || e.title == e.named || unfitTitle(e.title)) { pendingName = null; return }
-        pendingName = e.title
+        if (e.renamed != null || isNameFor(e.named, e.title) || unfitTitle(e.title)) { pendingName = null; return }
+        // Two sessions in one worktree: the second is "comet-art-2", so each address is unique.
+        val taken = FileEditorManager.getInstance(project).openFiles
+            .filterIsInstance<ClaudeSessionVirtualFile>()
+            .filter { it !== file }
+            .mapNotNull { f -> f.sessionId?.let { com.clauditor.services.TitleStore.get(it)?.named } }
+            .toSet()
+        pendingName = uniqueName(e.title, taken)
         trySendName()
     }
 
@@ -1831,11 +1823,9 @@ class ClaudeSessionEditor(
         }
         if (e.worktree == wt) return
         // /merge and /push step into main and back: only a worktree never seen before is new work.
-        val seen = e.worktrees ?: listOf(e.worktree)
-        val entered = wt.isNotEmpty() && wt !in seen && e.renamed == null
-        com.clauditor.services.TitleStore.put(sid, e.copy(worktree = wt, worktrees = (seen + wt).distinct(),
-            title = if (entered) wt else e.title))
-        if (entered) { applyTitle(wt); syncName(); ClaudeSessionService.getInstance(project).refresh() }
+        val next = enterWorktree(e, wt)
+        com.clauditor.services.TitleStore.put(sid, next)
+        if (next.title != e.title) { applyTitle(wt); syncName(); ClaudeSessionService.getInstance(project).refresh() }
     }
 
     private fun noteWorkStarted() {
@@ -2134,6 +2124,44 @@ class ClaudeSessionEditor(
     override fun dispose() { Disposer.dispose(rootDisposable) }
 
     companion object {
+        /**
+         * The title rules for a pinned entry when the session list reports [renamedTitle] (the
+         * transcript's /rename title) and [aiTitle] (the CLI's own). [fallback] repairs a title
+         * that isn't title-shaped. In order: a worktree session pinned before worktree names were
+         * titles takes its worktree's name (once); an unfit title is repaired; a user /rename wins
+         * (the plugin's own /rename, recorded in `named`, doesn't count); a new CLI title replaces
+         * the title only outside a worktree and only for drastically different work.
+         */
+        /** [base], or base-2, base-3... the first not in [taken]. */
+        internal fun uniqueName(base: String, taken: Set<String>): String =
+            generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base-$it" }.first { it !in taken }
+
+        /** Whether the session's name [named] was given for [title] (itself, or title-N). */
+        internal fun isNameFor(named: String?, title: String): Boolean =
+            named != null && (named == title || Regex("^" + Regex.escape(title) + "-\\d+$").matches(named))
+
+        internal fun reconcile(
+            e: com.clauditor.services.TitleStore.Entry, renamedTitle: String?, aiTitle: String?, fallback: String?
+        ): com.clauditor.services.TitleStore.Entry = when {
+            e.renamed == null && e.named == null && e.worktree.isNotEmpty() && e.title != e.worktree -> e.copy(title = e.worktree)
+            e.renamed == null && unfitTitle(e.title) -> if (fallback != null) e.copy(title = fallback) else e
+            renamedTitle != null && renamedTitle != e.renamed && renamedTitle != e.named -> e.copy(title = renamedTitle, renamed = renamedTitle)
+            e.renamed == null && aiTitle != null && aiTitle != e.aiTitle && !unfitTitle(aiTitle) ->
+                if (e.worktree.isEmpty() && drasticChange(e.title, aiTitle)) e.copy(title = aiTitle, aiTitle = aiTitle) else e.copy(aiTitle = aiTitle)
+            else -> e
+        }
+
+        /**
+         * The session is now in [wt] ("" for main). Only a worktree never seen before is new work
+         * and names the session; /merge and /push step into main and back without retitling.
+         */
+        internal fun enterWorktree(e: com.clauditor.services.TitleStore.Entry, wt: String): com.clauditor.services.TitleStore.Entry {
+            if (e.worktree == wt) return e
+            val seen = e.worktrees ?: listOf(e.worktree)
+            val entered = wt.isNotEmpty() && wt !in seen && e.renamed == null
+            return e.copy(worktree = wt, worktrees = (seen + wt).distinct(), title = if (entered) wt else e.title)
+        }
+
         private const val USAGE_URL = "https://claude.ai/settings/usage"
         /** Both pickers' footers name the session-only key with this phrase. */
         private const val SESSION_ONLY_HINT = "this session only"
