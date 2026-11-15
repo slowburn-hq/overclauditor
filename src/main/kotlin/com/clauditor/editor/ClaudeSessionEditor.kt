@@ -449,6 +449,7 @@ class ClaudeSessionEditor(
         val statusListener: (String, ClaudeStatus?) -> Unit = { sid, status ->
             if (sid == monitoringId || sid == file.sessionId) {
                 status?.cwd?.let { noteWorktree(worktreeOf(it)) }
+                trySendName()
                 file.modelId = status?.modelId
                 file.modelName = status?.modelName
                 file.contextPercent = status?.contextRemainingPercent
@@ -1762,24 +1763,60 @@ class ClaudeSessionEditor(
                 ?: summaryGist.takeUnless(::unfitTitle) ?: s?.firstPrompt ?: return
             val wt = knownWorktree
             if (wt == null) { applyTitle(title); return }  // pin once the worktree is known
-            store.put(sid, com.clauditor.services.TitleStore.Entry(title, wt, false, s?.aiTitle, s?.renamedTitle))
-            applyTitle(title)
+            // In a worktree, the worktree's name is the session's name.
+            val pinned = if (s?.renamedTitle == null && wt.isNotEmpty()) wt else title
+            store.put(sid, com.clauditor.services.TitleStore.Entry(pinned, wt, false, s?.aiTitle, s?.renamedTitle, listOf(wt)))
+            applyTitle(pinned)
+            syncName()
             return
         }
         when {
+            // Pinned before worktree names were titles: a session in a worktree takes its name, once.
+            e.renamed == null && e.named == null && e.worktree.isNotEmpty() && e.title != e.worktree ->
+                store.put(sid, e.copy(title = e.worktree))
             // A title pinned before the shape check (a summary that came back as a sentence): repair it.
             e.renamed == null && unfitTitle(e.title) -> {
                 val fix = s?.aiTitle?.takeUnless(::unfitTitle) ?: summaryGist.takeUnless(::unfitTitle)
                     ?: s?.firstPrompt?.let { com.clauditor.model.shortTitle(it) }?.takeUnless(::unfitTitle)
                 if (fix != null) store.put(sid, e.copy(title = fix))
             }
-            s?.renamedTitle != null && s.renamedTitle != e.renamed ->
+            // A /rename by the user (not the plugin's own, which sets the session's address).
+            s?.renamedTitle != null && s.renamedTitle != e.renamed && s.renamedTitle != e.named ->
                 store.put(sid, e.copy(title = s.renamedTitle, renamed = s.renamedTitle))
             // The CLI retitles rarely; follow it only when it names clearly different work.
             e.renamed == null && s?.aiTitle != null && s.aiTitle != e.aiTitle && !unfitTitle(s.aiTitle) ->
-                store.put(sid, if (drasticChange(e.title, s.aiTitle)) e.copy(title = s.aiTitle, aiTitle = s.aiTitle) else e.copy(aiTitle = s.aiTitle))
+                store.put(sid, if (e.worktree.isEmpty() && drasticChange(e.title, s.aiTitle)) e.copy(title = s.aiTitle, aiTitle = s.aiTitle) else e.copy(aiTitle = s.aiTitle))
         }
         applyTitle(store.get(sid)!!.title)
+        syncName()
+    }
+
+    /** The title to hand Claude as its session name, waiting for the session to be idle. */
+    @Volatile private var pendingName: String? = null
+
+    /**
+     * Give Claude the pinned title as its session name (`/rename`), so the cross-session address
+     * other sessions use (ListAgents, SendMessage) is the worktree or task, not "emberskies-12".
+     * Never over a user's own /rename.
+     */
+    private fun syncName() {
+        val e = file.sessionId?.let { com.clauditor.services.TitleStore.get(it) } ?: return
+        if (e.renamed != null || e.title == e.named || unfitTitle(e.title)) { pendingName = null; return }
+        pendingName = e.title
+        trySendName()
+    }
+
+    /** Send a pending /rename once Claude is idle at its prompt (not mid-reply, no dialog open). */
+    private fun trySendName() {
+        val name = pendingName ?: return
+        if (file.isThinking || ptyProcess?.isAlive != true) return
+        val screen = screenLines() ?: return
+        if (!inputBoxIn(screen)) return
+        val sid = file.sessionId ?: return
+        val e = com.clauditor.services.TitleStore.get(sid) ?: return
+        pendingName = null
+        com.clauditor.services.TitleStore.put(sid, e.copy(named = name))
+        sendCommand("/rename ${name.replace(Regex("\\s+"), " ").trim()}\r")
     }
 
     private fun noteWorktree(wt: String) {
@@ -1795,8 +1832,10 @@ class ClaudeSessionEditor(
         if (e.worktree == wt) return
         // /merge and /push step into main and back: only a worktree never seen before is new work.
         val seen = e.worktrees ?: listOf(e.worktree)
-        com.clauditor.services.TitleStore.put(sid, e.copy(worktree = wt, worktrees = (seen + wt).distinct()))
-        if (wt.isNotEmpty() && wt !in seen) retitleEvent()
+        val entered = wt.isNotEmpty() && wt !in seen && e.renamed == null
+        com.clauditor.services.TitleStore.put(sid, e.copy(worktree = wt, worktrees = (seen + wt).distinct(),
+            title = if (entered) wt else e.title))
+        if (entered) { applyTitle(wt); syncName(); ClaudeSessionService.getInstance(project).refresh() }
     }
 
     private fun noteWorkStarted() {
@@ -1804,7 +1843,7 @@ class ClaudeSessionEditor(
         val e = com.clauditor.services.TitleStore.get(sid) ?: return
         if (e.workStarted) return
         com.clauditor.services.TitleStore.put(sid, e.copy(workStarted = true))
-        retitleEvent()
+        if (e.worktree.isEmpty()) retitleEvent()  // in a worktree the name is the worktree's
     }
 
     /** Retitle from the summary: now if it is fresh (written in the last 2 minutes), else at its next write. */
@@ -1819,9 +1858,10 @@ class ClaudeSessionEditor(
         retitlePendingSince = 0
         val sid = file.sessionId ?: return
         val e = com.clauditor.services.TitleStore.get(sid) ?: return
-        if (summaryGist.isEmpty() || e.renamed != null || unfitTitle(summaryGist)) return
+        if (summaryGist.isEmpty() || e.renamed != null || e.worktree.isNotEmpty() || unfitTitle(summaryGist)) return
         com.clauditor.services.TitleStore.put(sid, e.copy(title = summaryGist))
         applyTitle(summaryGist)
+        syncName()
         ClaudeSessionService.getInstance(project).refresh()  // the list row shows the pinned title too
     }
 
@@ -2133,6 +2173,10 @@ class ClaudeSessionEditor(
          * Whether Claude Code's input box (the last "❯" line right under a ─ rule) holds typed
          * text. The start-up placeholder ('Try "…"') isn't a draft.
          */
+        /** Whether Claude's input box is on screen (it is at its prompt, no picker or dialog). */
+        internal fun inputBoxIn(screen: List<String>): Boolean =
+            screen.indices.any { i -> i > 0 && screen[i].startsWith("❯") && screen[i - 1].trimStart().startsWith("─") }
+
         internal fun draftIn(screen: List<String>): Boolean {
             for (i in screen.indices.reversed()) {
                 val line = screen[i].trimEnd()

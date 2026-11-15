@@ -25,7 +25,9 @@ object TitleStore {
         /** The /rename title at pin time, likewise. */
         val renamed: String? = null,
         /** Every worktree the session has been in: going back to one (or to main) never retitles. Null in old entries. */
-        val worktrees: List<String>? = null
+        val worktrees: List<String>? = null,
+        /** The name the plugin last gave Claude itself (`/rename`): the session's cross-session address. Not a user rename. */
+        val named: String? = null
     )
 
     private val file: Path by lazy { com.clauditor.util.OcPaths.dataDir.resolve("titles.json") }

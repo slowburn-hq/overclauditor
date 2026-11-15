@@ -18,5 +18,7 @@ class DraftDetectTest {
     @Test fun typedTextIsADraft() = assertTrue(ClaudeSessionEditor.draftIn(screen("❯ my draft")))
     @Test fun emptyBoxIsNot() = assertFalse(ClaudeSessionEditor.draftIn(screen("❯ ")))
     @Test fun placeholderIsNot() = assertFalse(ClaudeSessionEditor.draftIn(screen("❯ Try \"how does <filepath> work?\"")))
+    @Test fun inputBoxShown() = assertTrue(ClaudeSessionEditor.inputBoxIn(screen("❯ ")))
+    @Test fun pickerHidesInputBox() = assertFalse(ClaudeSessionEditor.inputBoxIn(listOf("   Select model", "   ❯ 2.  Opus 5.5", "   Enter to set as default")))
     @Test fun menuCursorIsNot() = assertFalse(ClaudeSessionEditor.draftIn(listOf("Pick one", "❯ No, exit", "  Yes, I trust this folder")))
 }
