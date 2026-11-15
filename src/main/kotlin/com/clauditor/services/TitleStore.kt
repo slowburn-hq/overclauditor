@@ -38,6 +38,11 @@ object TitleStore {
             val type = object : TypeToken<Map<String, Entry>>() {}.type
             Files.newBufferedReader(file).use { gson.fromJson<Map<String, Entry>>(it, type) }?.let { m.putAll(it) }
         } catch (_: Exception) {}
+        // Pinned before worktree names were titles: a session in a worktree is named after it, so
+        // closed sessions read that way in the list and Resume menu too (open tabs did already).
+        for ((id, e) in m) if (e.renamed == null && e.named == null && !e.worktree.isNullOrEmpty() && e.title != e.worktree) {
+            m[id] = e.copy(title = e.worktree)
+        }
         m
     }
 
