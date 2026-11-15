@@ -50,6 +50,8 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 - The Commit button is gone; caches moved to the IDE system folder and are removed on uninstall.
 
 ### Fixed
+- A session started inside a worktree (its transcript lives under the worktree) was missing
+  from the Sessions list and the Resume menu, listed only in Worktrees. Both list every session now.
 - False "Session unresponsive" warnings: any input with no output within 3s counted as a hang,
   but Claude Code draws nothing (or seconds later) for focus in/out, Shift+Tab, arrows and Enter
   on an empty box. Only typed text (which echoes in ~10ms) arms the check now, after 10s.

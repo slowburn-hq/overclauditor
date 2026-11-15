@@ -113,7 +113,6 @@ class NewClaudeSessionAction : AnAction("New Claude Session", "Start a new Claud
 /** The Sessions pane's "Sessions" list, as it appears there (newest first), capped for a menu. */
 fun recentSessions(project: Project, limit: Int = 10): List<com.clauditor.model.SessionDisplay> =
     com.clauditor.services.ClaudeSessionService.getInstance(project).getSessions()
-        .filter { it.worktreeName == null }
         .take(limit)
 
 /** "Resume ▸" in the editor tab menu: the last 10 sessions; picking one opens or focuses its tab. */

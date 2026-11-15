@@ -437,9 +437,9 @@ class SessionListPanel(
     }
 
     private fun reloadData() {
-        allSessions = sessionService.getSessions().filter {
-            if (worktreeMode) it.worktreeName != null else it.worktreeName == null
-        }
+        // Sessions lists every session, including ones started inside a worktree (their
+        // transcript lives under the worktree, so they used to show only in Worktrees).
+        allSessions = sessionService.getSessions().filter { !worktreeMode || it.worktreeName != null }
         applyFilter()
         if (worktreeMode) {
             refreshOrphans()
