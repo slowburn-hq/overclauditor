@@ -175,7 +175,7 @@ class ClaudeTerminalService(private val project: Project) : Disposable {
         }
 
         val settingsProvider = JBTerminalSystemSettingsProvider()
-        val widget = JBTerminalWidget(project, settingsProvider, parent)
+        val widget = com.clauditor.terminal.SessionTerminalWidget(project, settingsProvider, parent)
         widget.start(connector)
 
         Disposer.register(parent, Disposable {
