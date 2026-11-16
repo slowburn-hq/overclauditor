@@ -63,12 +63,24 @@ fun openClaudeSession(project: Project, session: com.clauditor.model.SessionDisp
         return
     }
     val file = ClaudeSessionVirtualFile(session.tabTitle, session.sessionId).apply {
-        if (session.worktreeName != null && project.basePath != null) {
-            workingDir = com.clauditor.util.ClaudePathEncoder.worktreeAbsolutePath(project.basePath!!, session.worktreeName)
+        val wt = resumeWorktree(project, session)
+        if (wt != null) {
+            workingDir = com.clauditor.util.ClaudePathEncoder.worktreeAbsolutePath(project.basePath!!, wt)
             isWorktreeSession = true
         }
     }
     openSessionTabAtEnd(project, file, focus)
+}
+
+/**
+ * The worktree a session resumes in: the one its transcript is filed under, or, for a session
+ * filed under the main checkout, the worktree it was last working in (it entered one mid-session).
+ */
+fun resumeWorktree(project: Project, session: com.clauditor.model.SessionDisplay): String? {
+    if (session.worktreeName != null) return session.worktreeName
+    val base = project.basePath ?: return null
+    val transcript = com.clauditor.util.ClaudePathEncoder.projectDir(base).resolve("${session.sessionId}.jsonl")
+    return com.clauditor.util.ResumeFolder.lastWorktree(transcript, base)
 }
 
 /**

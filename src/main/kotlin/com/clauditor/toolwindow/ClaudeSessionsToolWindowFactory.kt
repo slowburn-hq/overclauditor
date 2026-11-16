@@ -126,8 +126,9 @@ class ClaudeSessionsToolWindowFactory : ToolWindowFactory, DumbAware {
 
     private fun forkSession(project: Project, session: SessionDisplay) {
         val file = ClaudeSessionVirtualFile("Fork of ${session.tabTitle}", forkFrom = session.sessionId).apply {
-            if (session.worktreeName != null && project.basePath != null) {
-                workingDir = ClaudePathEncoder.worktreeAbsolutePath(project.basePath!!, session.worktreeName)
+            val wt = com.clauditor.editor.resumeWorktree(project, session)
+            if (wt != null) {
+                workingDir = ClaudePathEncoder.worktreeAbsolutePath(project.basePath!!, wt)
                 isWorktreeSession = true
             }
         }
