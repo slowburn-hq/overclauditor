@@ -84,11 +84,13 @@ fun resumeWorktree(project: Project, session: com.clauditor.model.SessionDisplay
 }
 
 /**
- * Reopen the session tabs that were open at shutdown. Runs at project startup whether or not
+ * Reopen the session tabs that were open at shutdown, unless `reopenSessionsAtStart` is off in
+ * the user's config (the list is still kept). Runs at project startup whether or not
  * the Sessions pane is showing, and waits for the session list's first background scan:
  * the list is empty until it lands, and restoring against that found nothing.
  */
 fun restoreOpenSessions(project: Project) {
+    if (!com.clauditor.services.OverclauditorConfig.get().reopenSessionsAtStart) return
     val saved = com.clauditor.services.OpenSessionsPersistence.getInstance(project).getAll()
     if (saved.isEmpty()) return
     val service = com.clauditor.services.ClaudeSessionService.getInstance(project)

@@ -43,7 +43,8 @@ within seconds (summary).
   ],
   "summary": { "source": "builtin" },
   "hideTerminalStatusLine": false,
-  "bundledCommands": true
+  "bundledCommands": true,
+  "reopenSessionsAtStart": true
 }
 ```
 
@@ -75,6 +76,9 @@ within seconds (summary).
 - **`bundledCommands`** (default `true`) — load the bundled `/overclauditor:merge`, `:push`,
   `:pull` into plugin sessions (`claude --plugin-dir <IDE system folder>/overclauditor/claude-plugin`).
   Nothing is installed into `~/.claude`. `false` leaves them out.
+- **`reopenSessionsAtStart`** (default `true`) — reopen the session tabs that were open when
+  the project closed, as it opens. `false` starts with none; the Sessions list and Resume
+  still have them.
 - **`summary`** — the two-line "what this session is about – what to test" text in the
   toolbar, also used to retitle tabs when work starts or the session changes worktree.
   - `"builtin"` (default): the plugin runs `claude -p --model haiku` in the background when

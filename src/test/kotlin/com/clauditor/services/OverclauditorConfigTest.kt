@@ -69,6 +69,13 @@ class OverclauditorConfigTest {
         assertEquals(OverclauditorConfig.SummarySource.BUILTIN, c.summarySource)
         assertNull(c.summaryFile)
         assertFalse(c.hideTerminalStatusLine)
+        assertTrue(c.reopenSessionsAtStart)
+    }
+
+    @Test
+    fun `reopening sessions at start can be turned off`() {
+        assertFalse(parse("""{"reopenSessionsAtStart":false}""").reopenSessionsAtStart)
+        assertTrue(parse("""{"reopenSessionsAtStart":true}""").reopenSessionsAtStart)
     }
 
     @Test

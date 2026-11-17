@@ -39,7 +39,9 @@ object OverclauditorConfig {
          * effort they last ran on (SessionSettings).
          */
         val defaultModel: String? = null,
-        val defaultEffort: String? = null
+        val defaultEffort: String? = null,
+        /** Reopen the session tabs that were open when the project closed, as it opens. */
+        val reopenSessionsAtStart: Boolean = true
     ) {
         /** Flags for a brand-new session. */
         fun newSessionArgs(): List<String> =
@@ -101,7 +103,8 @@ object OverclauditorConfig {
             hideTerminalStatusLine = o.get("hideTerminalStatusLine")?.asBoolean ?: DEFAULT.hideTerminalStatusLine,
             bundledCommands = o.get("bundledCommands")?.asBoolean ?: DEFAULT.bundledCommands,
             defaultModel = o.get("defaultModel")?.asString?.trim()?.takeIf { it.matches(Regex("[A-Za-z0-9._\\[\\]-]+")) },
-            defaultEffort = o.get("defaultEffort")?.asString?.trim()?.lowercase()?.takeIf { it in EFFORTS }
+            defaultEffort = o.get("defaultEffort")?.asString?.trim()?.lowercase()?.takeIf { it in EFFORTS },
+            reopenSessionsAtStart = o.get("reopenSessionsAtStart")?.asBoolean ?: DEFAULT.reopenSessionsAtStart
         )
     }
 
