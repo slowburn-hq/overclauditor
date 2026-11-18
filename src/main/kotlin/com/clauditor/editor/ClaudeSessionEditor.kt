@@ -303,6 +303,7 @@ class ClaudeSessionEditor(
         val monitoringId = adopted?.monitoringId ?: file.sessionId ?: "new-${System.nanoTime()}"
         val statusFile = adopted?.statusFile ?: statusService.createStatusFilePath(monitoringId)
         val notifyFile = adopted?.notifyFile ?: statusService.createNotifyFilePath(monitoringId)
+        if (adopted == null) statusService.resetAgents(monitoringId, notifyFile)
 
         val onActiveChanged: (Boolean) -> Unit = { active ->
             file.isThinking = active
@@ -455,9 +456,10 @@ class ClaudeSessionEditor(
                 file.contextPercent = status?.contextRemainingPercent
                 val prevNotify = file.notifyState
                 val newNotify = statusService.getNotifyState(sid)
-                // Suppress idle indicator on the active tab — user can already see it
+                file.agentsRunning = statusService.getAgentCount(sid)
+                // Suppress idle / done on the active tab — user can already see it
                 val selectedFile = FileEditorManager.getInstance(project).selectedEditor?.file
-                if (newNotify == "idle_prompt" && selectedFile == file) {
+                if ((newNotify == "idle_prompt" || newNotify == "done") && selectedFile == file) {
                     statusService.clearNotifyState(file.sessionId ?: monitoringId)
                     file.notifyState = null
                 } else {
@@ -469,7 +471,7 @@ class ClaudeSessionEditor(
                 updateContextBar(status)
 
                 // Notify when a non-focused tab needs attention
-                if (file.notifyState != null && prevNotify == null && selectedFile != file) {
+                if (file.notifyState != null && file.notifyState != "done" && (prevNotify == null || prevNotify == "done") && selectedFile != file) {
                     val msg = if (file.notifyState == "permission_prompt")
                         "${file.baseName} needs permission" else "${file.baseName} is waiting for input"
                     NotificationGroupManager.getInstance()
@@ -493,7 +495,7 @@ class ClaudeSessionEditor(
                     file.errorState = ClaudeSessionVirtualFile.ErrorState.SEEN
                     refreshTabTitle()
                 }
-                if (event.newFile == file && file.notifyState == "idle_prompt") {
+                if (event.newFile == file && (file.notifyState == "idle_prompt" || file.notifyState == "done")) {
                     file.notifyState = null
                     statusService.clearNotifyState(file.sessionId ?: monitoringId)
                     refreshTabTitle()

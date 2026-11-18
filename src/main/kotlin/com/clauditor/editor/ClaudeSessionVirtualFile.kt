@@ -43,6 +43,8 @@ class ClaudeSessionVirtualFile(
     var isThinking: Boolean = false
     var isUnresponsive: Boolean = false
     var notifyState: String? = null
+    /** Subagents still running (background ones too), from SubagentStart/SubagentStop. */
+    @Volatile var agentsRunning: Int = 0
     var isExternallyOpen: Boolean = false
 
     init {
@@ -79,15 +81,17 @@ class ClaudeSessionVirtualFile(
     enum class ErrorState { UNSEEN, SEEN }
 
     fun statusGlyph(): String? = when {
-        errorState == ErrorState.UNSEEN -> "○"       // red ring: a new error (see ClaudeSessionIconProvider)
+        errorState == ErrorState.UNSEEN -> "!"       // ! a new error (red, see ClaudeSessionIconProvider)
         errorState == ErrorState.SEEN -> "●"         // red dot: seen, not yet resolved
         isExternallyOpen -> "↗"                      // ↗ external session
         isUnresponsive -> "⊘"                        // ⊘ unresponsive
         notifyState == "permission_prompt" -> "⚠"    // ⚠ needs permission
-        notifyState == "idle_prompt" -> "○"          // ○ waiting for input
-        notifyState?.startsWith("tool:") == true -> "⚙" // ⚙ tool in use
         notifyState == "compact" -> "↻"              // ↻ compacting
+        notifyState?.startsWith("tool:") == true -> "⚙" // ⚙ tool in use
         isThinking -> "●"                            // ● thinking
+        agentsRunning > 0 -> "◐"                     // ◐ the turn is over, agents still running
+        notifyState == "done" -> "✓"                 // ✓ finished, not looked at yet
+        notifyState == "idle_prompt" -> "○"          // ○ waiting for input
         else -> null                                 // idle — no badge, slot stays reserved and empty
     }
 

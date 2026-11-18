@@ -24,6 +24,8 @@ class ClaudeStatusService(private val project: Project) : Disposable {
     private val monitoredSessions = ConcurrentHashMap<String, Path>()
     private val notifyFiles = ConcurrentHashMap<String, Path>()
     private val notifyState = ConcurrentHashMap<String, String>()
+    /** Subagents running per session: the files in `<notify file>.agents/`, one per agent_id. */
+    private val agentCount = ConcurrentHashMap<String, Int>()
     private val currentStatus = ConcurrentHashMap<String, ClaudeStatus>()
     private val listeners = CopyOnWriteArrayList<(String, ClaudeStatus?) -> Unit>()
     private var wrapperScript: Path? = null
@@ -50,6 +52,16 @@ class ClaudeStatusService(private val project: Project) : Disposable {
     fun getAllStatuses(): Map<String, ClaudeStatus> = HashMap(currentStatus)
 
     fun getNotifyState(sessionId: String): String? = notifyState[sessionId]
+
+    fun getAgentCount(sessionId: String): Int = agentCount[sessionId] ?: 0
+
+    fun agentsDir(notifyFile: Path): Path = notifyFile.resolveSibling(notifyFile.fileName.toString() + ".agents")
+
+    /** A fresh Claude process: subagents a dead one left marked are gone. */
+    fun resetAgents(sessionId: String, notifyFile: Path) {
+        agentCount.remove(sessionId)
+        try { agentsDir(notifyFile).toFile().deleteRecursively() } catch (_: Exception) {}
+    }
 
     fun clearNotifyState(sessionId: String) {
         notifyState.remove(sessionId)
@@ -80,36 +92,7 @@ class ClaudeStatusService(private val project: Project) : Disposable {
     fun getNotifyScriptPath(): Path {
         notifyScript?.let { if (Files.exists(it)) return it }
         val script = Files.createTempFile("clauditor-notify-", ".sh")
-        Files.writeString(script, buildString {
-            appendLine("#!/bin/bash")
-            appendLine("input=\$(cat)")
-            appendLine("if [ -n \"\$CLAUDITOR_NOTIFY_FILE\" ]; then")
-            appendLine("  event=\$(echo \"\$input\" | sed -n 's/.*\"hook_event_name\":\"\\([^\"]*\\)\".*/\\1/p')")
-            appendLine("  state=\"\"")
-            appendLine("  case \"\$event\" in")
-            appendLine("    Notification)")
-            appendLine("      state=\$(echo \"\$input\" | sed -n 's/.*\"notification_type\":\"\\([^\"]*\\)\".*/\\1/p')")
-            appendLine("      ;;")
-            appendLine("    PreToolUse)")
-            appendLine("      tool=\$(echo \"\$input\" | sed -n 's/.*\"tool_name\":\"\\([^\"]*\\)\".*/\\1/p')")
-            appendLine("      state=\"tool:\$tool\"")
-            appendLine("      ;;")
-            appendLine("    PostToolUse|PostToolUseFailure)")
-            appendLine("      state=\"clear\"")
-            appendLine("      ;;")
-            appendLine("    PreCompact)")
-            appendLine("      state=\"compact\"")
-            appendLine("      ;;")
-            appendLine("    PostCompact)")
-            appendLine("      state=\"clear\"")
-            appendLine("      ;;")
-            appendLine("  esac")
-            appendLine("  if [ -n \"\$state\" ]; then")
-            appendLine("    echo \"\$state\" > \"\${CLAUDITOR_NOTIFY_FILE}.\$\$\"")
-            appendLine("    mv \"\${CLAUDITOR_NOTIFY_FILE}.\$\$\" \"\$CLAUDITOR_NOTIFY_FILE\" 2>/dev/null")
-            appendLine("  fi")
-            appendLine("fi")
-        })
+        Files.writeString(script, notifyScriptText())
         script.toFile().setExecutable(true)
         notifyScript = script
         return script
@@ -182,6 +165,10 @@ class ClaudeStatusService(private val project: Project) : Disposable {
         }
         hooks.add("PreCompact", compactRule)
         hooks.add("PostCompact", compactRule.deepCopy())
+        // Background agents (◐), a finished turn (✓), a new prompt (clears). The script prints
+        // nothing, so these add nothing to Claude's context.
+        for (event in listOf("SubagentStart", "SubagentStop", "Stop", "UserPromptSubmit"))
+            hooks.add(event, compactRule.deepCopy())
 
         root.add("hooks", hooks)
 
@@ -274,6 +261,7 @@ class ClaudeStatusService(private val project: Project) : Disposable {
         stopMonitoring(sessionId)
         notifyState.remove(sessionId)
         currentStatus.remove(sessionId)
+        resetAgents(sessionId, createNotifyFilePath(sessionId))
         try { Files.deleteIfExists(createStatusFilePath(sessionId)) } catch (_: Exception) {}
         try { Files.deleteIfExists(createNotifyFilePath(sessionId)) } catch (_: Exception) {}
     }
@@ -298,6 +286,10 @@ class ClaudeStatusService(private val project: Project) : Disposable {
             } catch (_: Exception) {}
         }
         for ((sessionId, notifyFile) in notifyFiles) {
+            try {
+                val n = agentsDir(notifyFile).toFile().list()?.size ?: 0
+                if ((agentCount.put(sessionId, n) ?: 0) != n) listeners.forEach { it(sessionId, currentStatus[sessionId]) }
+            } catch (_: Exception) {}
             try {
                 if (Files.exists(notifyFile)) {
                     val type = Files.readString(notifyFile).trim()
@@ -433,11 +425,65 @@ class ClaudeStatusService(private val project: Project) : Disposable {
         monitoredSessions.clear()
         notifyFiles.clear()
         notifyState.clear()
+        agentCount.clear()
         currentStatus.clear()
         listeners.clear()
     }
 
     companion object {
+        /** The hook script: one state per session in $CLAUDITOR_NOTIFY_FILE, running subagents as files beside it. */
+        internal fun notifyScriptText(): String = buildString {
+            appendLine("#!/bin/bash")
+            appendLine("input=\$(cat)")
+            appendLine("if [ -n \"\$CLAUDITOR_NOTIFY_FILE\" ]; then")
+            appendLine("  event=\$(echo \"\$input\" | sed -n 's/.*\"hook_event_name\":\"\\([^\"]*\\)\".*/\\1/p')")
+            // A subagent's hooks carry its agent_id; the main agent's don't (Claude Code 2.1.326).
+            appendLine("  aid=\$(echo \"\$input\" | sed -n 's/.*\"agent_id\":\"\\([^\"]*\\)\".*/\\1/p')")
+            appendLine("  state=\"\"")
+            appendLine("  case \"\$event\" in")
+            appendLine("    Notification)")
+            appendLine("      state=\$(echo \"\$input\" | sed -n 's/.*\"notification_type\":\"\\([^\"]*\\)\".*/\\1/p')")
+            appendLine("      ;;")
+            appendLine("    SubagentStart)")
+            appendLine("      [ -n \"\$aid\" ] && mkdir -p \"\${CLAUDITOR_NOTIFY_FILE}.agents\" && : > \"\${CLAUDITOR_NOTIFY_FILE}.agents/\$aid\"")
+            appendLine("      ;;")
+            appendLine("    SubagentStop)")
+            appendLine("      [ -n \"\$aid\" ] && rm -f \"\${CLAUDITOR_NOTIFY_FILE}.agents/\$aid\"")
+            appendLine("      ;;")
+            appendLine("    Stop)")
+            appendLine("      state=\"done\"")
+            appendLine("      ;;")
+            appendLine("    UserPromptSubmit)")
+            appendLine("      state=\"clear\"")
+            appendLine("      ;;")
+            // a subagent's tools neither show ⚙ nor clear the main agent's ⚠
+            appendLine("    PreToolUse|PostToolUse|PostToolUseFailure)")
+            appendLine("      [ -n \"\$aid\" ] && exit 0")
+            appendLine("      ;;")
+            appendLine("  esac")
+            appendLine("  case \"\$event\" in")
+            appendLine("    PreToolUse)")
+            appendLine("      tool=\$(echo \"\$input\" | sed -n 's/.*\"tool_name\":\"\\([^\"]*\\)\".*/\\1/p')")
+            appendLine("      state=\"tool:\$tool\"")
+            appendLine("      ;;")
+            appendLine("    PostToolUse|PostToolUseFailure)")
+            appendLine("      state=\"clear\"")
+            appendLine("      ;;")
+            appendLine("    PreCompact)")
+            appendLine("      state=\"compact\"")
+            appendLine("      ;;")
+            appendLine("    PostCompact)")
+            appendLine("      state=\"clear\"")
+            appendLine("      ;;")
+            appendLine("  esac")
+            appendLine("  if [ -n \"\$state\" ]; then")
+            appendLine("    echo \"\$state\" > \"\${CLAUDITOR_NOTIFY_FILE}.\$\$\"")
+            appendLine("    mv \"\${CLAUDITOR_NOTIFY_FILE}.\$\$\" \"\$CLAUDITOR_NOTIFY_FILE\" 2>/dev/null")
+            appendLine("  fi")
+            appendLine("fi")
+            appendLine("exit 0")   // a hook's own exit code: never an error
+        }
+
         /** The status-line wrapper's text (tested directly by running it through bash). */
         internal fun wrapperScriptText(): String = buildString {
         appendLine("#!/bin/bash")
