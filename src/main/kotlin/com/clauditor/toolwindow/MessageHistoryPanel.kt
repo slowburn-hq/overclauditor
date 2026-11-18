@@ -52,6 +52,11 @@ class MessageHistoryPanel(
     private val tail = com.clauditor.util.JsonlTailReader()
     private var lastPath: java.nio.file.Path? = null
     @Volatile private var visible = false
+    /** Hide the harness's own records (`<task-notification>`, `<command-name>`…): on by default. */
+    private val hideTagged = JCheckBox("Hide <…> messages", true).apply {
+        toolTipText = "Hide messages that start with a tag, like <task-notification> or <command-name>"
+        isOpaque = false
+    }
 
     init {
         border = JBUI.Borders.empty()
@@ -74,7 +79,9 @@ class MessageHistoryPanel(
             val label = JLabel("Messages")
             label.font = label.font.deriveFont(java.awt.Font.BOLD)
             add(label, BorderLayout.WEST)
+            add(hideTagged, BorderLayout.SOUTH)
         }
+        hideTagged.addActionListener { showEntries(synchronized(this) { entries.toList() }) }
 
         add(header, BorderLayout.NORTH)
         add(ScrollPaneFactory.createScrollPane(list), BorderLayout.CENTER)
@@ -144,10 +151,14 @@ class MessageHistoryPanel(
         if (!changed) return
 
         val snapshot = entries.toList()
-        ApplicationManager.getApplication().invokeLater {
-            listModel.clear()
-            snapshot.forEach { listModel.addElement(it) }
-        }
+        ApplicationManager.getApplication().invokeLater { showEntries(snapshot) }
+    }
+
+    /** Fill the list from [all], newest first, leaving out tagged messages while the box is
+     *  ticked. EDT only. */
+    private fun showEntries(all: List<MessageEntry>) {
+        listModel.clear()
+        all.asReversed().filter { !hideTagged.isSelected || !isTagged(it.text) }.forEach { listModel.addElement(it) }
     }
 
     /** A user message from one transcript line, or null for any other record type. */
@@ -183,9 +194,10 @@ class MessageHistoryPanel(
         val entry = listModel.getElementAt(listIndex)
         val searchKey = entry.searchKey.take(40)
 
-        // Count how many entries before this one share the same search key
+        // Count the OLDER entries (below it: the list is newest first) that share the search
+        // key, the order they appear in the terminal
         var targetOccurrence = 1
-        for (i in 0 until listIndex) {
+        for (i in listIndex + 1 until listModel.size()) {
             if (listModel.getElementAt(i).searchKey.take(40) == searchKey) {
                 targetOccurrence++
             }
@@ -271,6 +283,11 @@ class MessageHistoryPanel(
     }
 
     override fun dispose() {}
+
+    companion object {
+        /** A message that starts with `<`: a harness record, not something the user typed. */
+        fun isTagged(text: String): Boolean = text.trimStart().startsWith("<")
+    }
 
     private class MessageEntryRenderer : ColoredListCellRenderer<MessageEntry>() {
         override fun customizeCellRenderer(
