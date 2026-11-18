@@ -18,3 +18,8 @@ have rewritten parts of the same files, so every commit gets a decision.
 5. Merge to `main`, `tools/publish-local.sh`, `git push`.
 6. Skipped commits stay listed by the check forever; that is fine, the user already decided.
    If they become noise, record skipped SHAs in this file under "Skipped" and filter them.
+
+Already-taken commits: the check filters any upstream commit whose patch `main` already carries
+under a different SHA (`--cherry-pick`). In 2026-11 it listed 18 such commits (7ba89dd and
+earlier, up to the PR #4 merge 64a8b1c); `git cherry -v main upstream/main` showed every one as
+`-`, so nothing was taken.
