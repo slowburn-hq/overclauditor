@@ -1633,7 +1633,7 @@ class ClaudeSessionEditor(
             if (!process.isAlive || !busy.compareAndSet(false, true)) return@Timer
             com.clauditor.util.ClauditorExecutor.submit {
                 try {
-                    val n = com.clauditor.util.BackgroundShells.count(process.toHandle())
+                    val n = com.clauditor.util.BackgroundShells.count(process.toHandle(), com.clauditor.services.OverclauditorConfig.get().waiterCommands)
                     if (n != file.shellsRunning) ApplicationManager.getApplication().invokeLater {
                         file.shellsRunning = n
                         refreshTabTitle()

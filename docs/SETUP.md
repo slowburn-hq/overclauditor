@@ -44,7 +44,8 @@ within seconds (summary).
   "summary": { "source": "builtin" },
   "hideTerminalStatusLine": false,
   "bundledCommands": true,
-  "reopenSessionsAtStart": true
+  "reopenSessionsAtStart": true,
+  "waiterCommands": ["my-feedback-waiter"]
 }
 ```
 
@@ -76,6 +77,10 @@ within seconds (summary).
 - **`bundledCommands`** (default `true`) — load the bundled `/overclauditor:merge`, `:push`,
   `:pull` into plugin sessions (`claude --plugin-dir <IDE system folder>/overclauditor/claude-plugin`).
   Nothing is installed into `~/.claude`. `false` leaves them out.
+- **`waiterCommands`** (default none) — the tab badge shows ◐ while Claude has a background
+  command running; a command that only waits (a feedback or file watcher an agent keeps running
+  for good) would hold it there. A background command containing one of these strings is not
+  counted. Read on every check, so a change applies at once.
 - **`reopenSessionsAtStart`** (default `true`) — reopen the session tabs that were open when
   the project closed, as it opens. `false` starts with none; the Sessions list and Resume
   still have them.

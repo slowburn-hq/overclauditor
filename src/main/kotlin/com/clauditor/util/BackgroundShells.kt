@@ -11,10 +11,14 @@ object BackgroundShells {
 
     internal fun isClaudeShell(commandLine: String?): Boolean = commandLine != null && SNAPSHOT.containsMatchIn(commandLine)
 
-    /** The shells under [root] Claude Code started (a shell inside one is not counted again). */
-    fun count(root: ProcessHandle): Int = try {
+    /**
+     * The shells under [root] Claude Code started (a shell inside one is not counted again),
+     * leaving out those whose command contains one of [waiters] (config `waiterCommands`).
+     */
+    fun count(root: ProcessHandle, waiters: List<String> = emptyList()): Int = try {
         root.descendants().filter { p ->
-            isClaudeShell(p.info().commandLine().orElse(null)) &&
+            val cmd = p.info().commandLine().orElse(null)
+            isClaudeShell(cmd) && waiters.none { cmd!!.contains(it) } &&
                 p.parent().map { !isClaudeShell(it.info().commandLine().orElse(null)) }.orElse(true)
         }.count().toInt()
     } catch (_: Exception) { 0 }

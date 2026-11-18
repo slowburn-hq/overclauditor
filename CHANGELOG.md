@@ -12,6 +12,8 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
   colour and the badge is as big as the Claude icon. A subagent's tools no longer flicker ⚙ or
   clear the main agent's ⚠. New hooks: SubagentStart/Stop, Stop, UserPromptSubmit (they print
   nothing, so no context cost).
+- `waiterCommands` in config.json: background commands that only wait (a feedback waiter) don't
+  hold the badge at ◐.
 - `reopenSessionsAtStart` in `~/.overclauditor/config.json` (default `true`): `false` opens the
   project with no session tabs instead of reopening the ones left open.
 - Session tabs wrap onto more rows when they run out of space; other editor tab strips keep the

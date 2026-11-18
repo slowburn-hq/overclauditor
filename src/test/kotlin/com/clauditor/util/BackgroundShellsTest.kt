@@ -31,6 +31,7 @@ class BackgroundShellsTest {
             var n = 0
             repeat(40) { if (n == 0) { Thread.sleep(100); n = BackgroundShells.count(me) } }
             assertEquals(1, n)
+            assertEquals(0, BackgroundShells.count(me, listOf("sleep 30")), "a waiter command is not counted")
         } finally {
             p.toHandle().descendants().forEach { it.destroyForcibly() }
             p.destroyForcibly(); p.waitFor(5, TimeUnit.SECONDS)

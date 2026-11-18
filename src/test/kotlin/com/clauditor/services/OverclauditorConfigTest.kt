@@ -73,6 +73,12 @@ class OverclauditorConfigTest {
     }
 
     @Test
+    fun `waiter commands`() {
+        assertEquals(emptyList(), parse("{}").waiterCommands)
+        assertEquals(listOf("asset-bench wait"), parse("""{"waiterCommands":["asset-bench wait", " "]}""").waiterCommands)
+    }
+
+    @Test
     fun `reopening sessions at start can be turned off`() {
         assertFalse(parse("""{"reopenSessionsAtStart":false}""").reopenSessionsAtStart)
         assertTrue(parse("""{"reopenSessionsAtStart":true}""").reopenSessionsAtStart)
