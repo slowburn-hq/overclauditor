@@ -17,6 +17,8 @@ import java.io.File
  * Files copied in Finder paste as their PATHS, the way a drag into iTerm types them, so Claude
  * Code attaches each image (`[Image #1] [Image #2]`). The terminal's own paste took the
  * clipboard's text, which for copied files is only their names.
+ * Only IMAGES keep the escaped form Claude Code attaches; any other file (a zip, a model) pastes
+ * in double quotes, which reads as the path it is (user, 2026-11-18).
  */
 object FilePaste {
     private const val SPECIAL = " \\'\"()[]{}&;|<>*?$`!#~"
@@ -26,7 +28,16 @@ object FilePaste {
         for (c in path) { if (c in SPECIAL) append('\\'); append(c) }
     }
 
-    /** The copied files as escaped paths, space-separated; null when no files are on the clipboard. */
+    private val IMAGES = setOf("png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic")
+
+    /** A path in double quotes, with what a shell still reads inside them escaped. */
+    fun quote(path: String): String = "\"" + path.replace(Regex("([\"\\\\$`])"), "\\\\$1") + "\""
+
+    /** How one copied file pastes: an image escaped (so it attaches), anything else quoted. */
+    fun pasted(path: String): String =
+        if (path.substringAfterLast('.', "").lowercase() in IMAGES) escape(path) else quote(path)
+
+    /** The copied files as pasted paths, space-separated; null when no files are on the clipboard. */
     fun clipboardFiles(): String? {
         val contents = CopyPasteManager.getInstance().contents ?: return null
         if (!contents.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return null
@@ -34,7 +45,7 @@ object FilePaste {
             (contents.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)?.filterIsInstance<File>()
         } catch (_: Exception) { null }
         if (files.isNullOrEmpty()) return null
-        return files.joinToString(" ") { escape(it.absolutePath) }
+        return files.joinToString(" ") { pasted(it.absolutePath) }
     }
 
     fun handler(inner: TerminalCopyPasteHandler) = object : TerminalCopyPasteHandler {
