@@ -5,6 +5,9 @@ Fork of Clauditor (bdkent/clauditor, remote `upstream`) with the owner's changes
 
 - **First thing in a session: run `tools/upstream-check.sh`.** It checks once a day and is
   silent otherwise. If it lists commits, follow `docs/upstream-updates.md` before other work.
+  **Take them without asking** (owner, 2026-11-17): pick, merge, test and publish yourself; warn
+  the owner first only when the update could disrupt their running sessions (a plugin reload
+  that drops open session tabs, a changed storage file, a renamed setting).
 
 - **Nothing user-specific in code.** Per-machine choices (buttons, summary source, status-line
   hiding) go in `~/.overclauditor/config.json` (`OverclauditorConfig`), documented in
