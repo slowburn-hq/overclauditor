@@ -6,7 +6,8 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 ## 0.7.30-oc
 
 ### Added
-- Tab badge: ◐ while subagents still run after the turn ends (it used to look finished), ✓ when
+- Tab badge: ◐ while subagents or background commands (`run_in_background`, read from the
+  process tree: Claude Code has no hook for their end) still run after the turn ends (it used to look finished), ✓ when
   a turn finishes until you look at the tab, a red ! for a new error; each state has its own
   colour and the badge is as big as the Claude icon. A subagent's tools no longer flicker ⚙ or
   clear the main agent's ⚠. New hooks: SubagentStart/Stop, Stop, UserPromptSubmit (they print

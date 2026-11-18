@@ -389,6 +389,7 @@ class ClaudeSessionEditor(
         val session = live.session
 
         ptyProcess = session.process
+        watchShells(session.process)
         terminalWidget = session.widget
         focusComponent = session.widget.preferredFocusableComponent
 
@@ -1625,6 +1626,25 @@ class ClaudeSessionEditor(
     }
 
     /** Tick the cache bar each second while the tab is on screen; subscribe to plan usage. */
+    /** Every 2 s, off the EDT: the shells Claude Code has running (◐ while a background command runs). */
+    private fun watchShells(process: Process) {
+        val busy = java.util.concurrent.atomic.AtomicBoolean(false)
+        val timer = javax.swing.Timer(2000) {
+            if (!process.isAlive || !busy.compareAndSet(false, true)) return@Timer
+            com.clauditor.util.ClauditorExecutor.submit {
+                try {
+                    val n = com.clauditor.util.BackgroundShells.count(process.toHandle())
+                    if (n != file.shellsRunning) ApplicationManager.getApplication().invokeLater {
+                        file.shellsRunning = n
+                        refreshTabTitle()
+                    }
+                } finally { busy.set(false) }
+            }
+        }
+        timer.start()
+        Disposer.register(sessionDisposable, Disposable { timer.stop() })
+    }
+
     private fun startCacheTimer() {
         var ticks = 0
         val timer = javax.swing.Timer(1000) {

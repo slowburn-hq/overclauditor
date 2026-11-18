@@ -45,6 +45,8 @@ class ClaudeSessionVirtualFile(
     var notifyState: String? = null
     /** Subagents still running (background ones too), from SubagentStart/SubagentStop. */
     @Volatile var agentsRunning: Int = 0
+    /** Shells Claude Code has running under this session (background commands), from the process tree. */
+    @Volatile var shellsRunning: Int = 0
     var isExternallyOpen: Boolean = false
 
     init {
@@ -89,7 +91,7 @@ class ClaudeSessionVirtualFile(
         notifyState == "compact" -> "↻"              // ↻ compacting
         notifyState?.startsWith("tool:") == true -> "⚙" // ⚙ tool in use
         isThinking -> "●"                            // ● thinking
-        agentsRunning > 0 -> "◐"                     // ◐ the turn is over, agents still running
+        agentsRunning > 0 || shellsRunning > 0 -> "◐" // ◐ the turn is over, agents or commands still running
         notifyState == "done" -> "✓"                 // ✓ finished, not looked at yet
         notifyState == "idle_prompt" -> "○"          // ○ waiting for input
         else -> null                                 // idle — no badge, slot stays reserved and empty

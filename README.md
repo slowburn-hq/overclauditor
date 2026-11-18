@@ -147,7 +147,7 @@ Real-time visibility into what Claude is doing:
 
 - **Tab indicators** — one coloured badge, as big as the Claude icon, most urgent first:
   red **!** new error (red ● once seen) · ↗ open elsewhere · ⊘ unresponsive · ⚠ needs permission ·
-  ↻ compacting · ⚙ tool running · ● thinking · ◐ turn over, agents still running · ✓ done, not looked
+  ↻ compacting · ⚙ tool running · ● thinking · ◐ turn over, agents or background commands still running · ✓ done, not looked
   at yet · ○ waiting for input. Fed by hooks that print nothing, so they cost Claude no tokens.
 - **Unresponsive detection** — automatically detects frozen CLI sessions when input gets no echo, highlights the reconnect button
 - **Context usage** — progress bar showing how much of Claude's context window is consumed
