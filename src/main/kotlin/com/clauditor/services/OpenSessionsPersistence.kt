@@ -1,5 +1,6 @@
 package com.clauditor.services
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -45,13 +46,22 @@ class OpenSessionsPersistence(private val project: Project) : PersistentStateCom
         }
     }
 
+    /**
+     * A tab the user closed. Not one closed by a plugin update or uninstall ([unloading]) or by
+     * the IDE exiting: those tabs were open at the restart and reopen after it (an update closed
+     * them all, then the unload was refused and the IDE restarted with none to restore).
+     */
     fun remove(sessionId: String) {
+        if (unloading || ApplicationManager.getApplication().isExitInProgress || project.isDisposed) return
         myState.sessionIds.remove(sessionId)
     }
 
     fun getAll(): List<String> = myState.sessionIds.toList()
 
     companion object {
+        /** Set before this plugin unloads (an update). Never cleared: the unload discards these classes, or is refused and the IDE restarts. */
+        @Volatile @JvmStatic var unloading = false
+
         /** [ids] sorted by their position in [tabOrder]; ids with no open tab keep their place at the end. */
         internal fun ordered(ids: List<String>, tabOrder: List<String>): List<String> {
             val pos = tabOrder.withIndex().associate { it.value to it.index }

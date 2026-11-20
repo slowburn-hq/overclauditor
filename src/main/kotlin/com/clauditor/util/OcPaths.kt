@@ -71,7 +71,10 @@ object OcPaths {
     /** Uninstall (or disable): remove the caches and temp files so nothing is left behind. */
     class CleanupOnUnload : DynamicPluginListener {
         override fun beforePluginUnload(pluginDescriptor: IdeaPluginDescriptor, isUpdate: Boolean) {
-            if (isUpdate || pluginDescriptor.pluginId.idString != PLUGIN_ID) return
+            if (pluginDescriptor.pluginId.idString != PLUGIN_ID) return
+            // The unload closes every session tab next; they are still "open" to the restore list.
+            com.clauditor.services.OpenSessionsPersistence.unloading = true
+            if (isUpdate) return
             runCatching { File(PathManager.getSystemPath(), "overclauditor").deleteRecursively() }
             com.clauditor.editor.releaseDoubleClick()
             sweepStaleTempFiles(maxAgeMs = 0)
