@@ -46,17 +46,29 @@ class OpenSessionsPersistence(private val project: Project) : PersistentStateCom
         }
     }
 
+    /** Set when this project starts closing: its tabs close next, and they were open at the close. */
+    @Volatile var projectClosing = false
+
     /**
-     * A tab the user closed. Not one closed by a plugin update or uninstall ([unloading]) or by
-     * the IDE exiting: those tabs were open at the restart and reopen after it (an update closed
-     * them all, then the unload was refused and the IDE restarted with none to restore).
+     * Drop a session from the reopen list: only when the USER closed its tab (the X, Cmd+W, a
+     * Close menu item), i.e. the close runs inside a mouse or key event. Tabs closed by a plugin
+     * update ([unloading]), Rider quitting or the project closing stay listed and reopen.
      */
     fun remove(sessionId: String) {
-        if (unloading || ApplicationManager.getApplication().isExitInProgress || project.isDisposed) return
+        if (unloading || projectClosing || project.isDisposed) return
+        if (ApplicationManager.getApplication().isExitInProgress) return
+        if (com.intellij.ide.IdeEventQueue.getInstance().trueCurrentEvent !is java.awt.event.InputEvent) return
         myState.sessionIds.remove(sessionId)
     }
 
     fun getAll(): List<String> = myState.sessionIds.toList()
+
+    /** Marks [OpenSessionsPersistence.projectClosing] before the project's tabs close. */
+    class OnProjectClose : com.intellij.openapi.project.ProjectCloseListener {
+        override fun projectClosing(project: Project) {
+            project.getServiceIfCreated(OpenSessionsPersistence::class.java)?.projectClosing = true
+        }
+    }
 
     companion object {
         /** Set before this plugin unloads (an update). Never cleared: the unload discards these classes, or is refused and the IDE restarts. */

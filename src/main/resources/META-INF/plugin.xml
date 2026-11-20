@@ -156,6 +156,7 @@
 
     <applicationListeners>
         <listener class="com.clauditor.util.OcPaths$CleanupOnUnload" topic="com.intellij.ide.plugins.DynamicPluginListener"/>
+        <listener class="com.clauditor.services.OpenSessionsPersistence$OnProjectClose" topic="com.intellij.openapi.project.ProjectCloseListener"/>
     </applicationListeners>
 
     <actions>
