@@ -14,8 +14,8 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
   nothing, so no context cost).
 - `waiterCommands` in config.json: background commands that only wait (a feedback waiter) don't
   hold the badge at ◐.
-- `reopenSessionsAtStart` in `~/.overclauditor/config.json` (default `true`): `false` opens the
-  project with no session tabs instead of reopening the ones left open.
+- `showSessionsAtStart` in `~/.overclauditor/config.json` (default `true`): `false` starts the
+  project with the Sessions tool window closed.
 - Session tabs wrap onto more rows when they run out of space; other editor tab strips keep the
   IDE's own one-row setting.
 - Right-click the branch name or the summary text on the toolbar to copy it (the whole summary,

@@ -84,13 +84,11 @@ fun resumeWorktree(project: Project, session: com.clauditor.model.SessionDisplay
 }
 
 /**
- * Reopen the session tabs that were open at shutdown, unless `reopenSessionsAtStart` is off in
- * the user's config (the list is still kept). Runs at project startup whether or not
+ * Reopen the session tabs that were open at shutdown (all but those the user closed). Runs at project startup whether or not
  * the Sessions pane is showing, and waits for the session list's first background scan:
  * the list is empty until it lands, and restoring against that found nothing.
  */
 fun restoreOpenSessions(project: Project) {
-    if (!com.clauditor.services.OverclauditorConfig.get().reopenSessionsAtStart) return
     val saved = com.clauditor.services.OpenSessionsPersistence.getInstance(project).getAll()
     if (saved.isEmpty()) return
     val service = com.clauditor.services.ClaudeSessionService.getInstance(project)
@@ -161,6 +159,11 @@ class TabBarNewSessionActivity : ProjectActivity {
             if (project.isDisposed) return@invokeLater
             claimDoubleClick()
             restoreOpenSessions(project)
+            // The IDE reopens tool windows that were open at shutdown; `showSessionsAtStart: false` closes this one.
+            if (!com.clauditor.services.OverclauditorConfig.get().showSessionsAtStart)
+                com.intellij.openapi.wm.ToolWindowManager.getInstance(project).invokeLater {
+                    com.intellij.openapi.wm.ToolWindowManager.getInstance(project).getToolWindow("Sessions")?.hide()
+                }
             installAll(project)
             project.messageBus.connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER,
                 object : FileEditorManagerListener {

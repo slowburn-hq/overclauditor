@@ -44,7 +44,7 @@ within seconds (summary).
   "summary": { "source": "builtin" },
   "hideTerminalStatusLine": false,
   "bundledCommands": true,
-  "reopenSessionsAtStart": true,
+  "showSessionsAtStart": true,
   "waiterCommands": ["my-feedback-waiter"]
 }
 ```
@@ -81,9 +81,8 @@ within seconds (summary).
   command running; a command that only waits (a feedback or file watcher an agent keeps running
   for good) would hold it there. A background command containing one of these strings is not
   counted. Read on every check, so a change applies at once.
-- **`reopenSessionsAtStart`** (default `true`) — reopen the session tabs that were open when
-  the project closed, as it opens. `false` starts with none; the Sessions list and Resume
-  still have them.
+- **`showSessionsAtStart`** (default `true`) — `false` starts the project with the Sessions
+  tool window closed, even if it was open at shutdown. Session tabs reopen either way.
 - **`summary`** — the two-line "what this session is about – what to test" text in the
   toolbar, also used to retitle tabs when work starts or the session changes worktree.
   - `"builtin"` (default): the plugin runs `claude -p --model haiku` in the background when

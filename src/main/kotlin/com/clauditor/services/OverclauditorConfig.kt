@@ -40,8 +40,8 @@ object OverclauditorConfig {
          */
         val defaultModel: String? = null,
         val defaultEffort: String? = null,
-        /** Reopen the session tabs that were open when the project closed, as it opens. */
-        val reopenSessionsAtStart: Boolean = true,
+        /** `false`: the Sessions tool window starts closed, even if it was open at shutdown. */
+        val showSessionsAtStart: Boolean = true,
         /**
          * Background commands that wait rather than work (a feedback waiter, a watcher): a Claude
          * shell whose command contains one of these doesn't hold the tab badge at ◐.
@@ -109,7 +109,7 @@ object OverclauditorConfig {
             bundledCommands = o.get("bundledCommands")?.asBoolean ?: DEFAULT.bundledCommands,
             defaultModel = o.get("defaultModel")?.asString?.trim()?.takeIf { it.matches(Regex("[A-Za-z0-9._\\[\\]-]+")) },
             defaultEffort = o.get("defaultEffort")?.asString?.trim()?.lowercase()?.takeIf { it in EFFORTS },
-            reopenSessionsAtStart = o.get("reopenSessionsAtStart")?.asBoolean ?: DEFAULT.reopenSessionsAtStart,
+            showSessionsAtStart = o.get("showSessionsAtStart")?.asBoolean ?: DEFAULT.showSessionsAtStart,
             waiterCommands = o.getAsJsonArray("waiterCommands")?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() } }
                 ?: DEFAULT.waiterCommands
         )
