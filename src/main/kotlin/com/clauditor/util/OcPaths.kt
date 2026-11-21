@@ -38,11 +38,12 @@ object OcPaths {
 
     private val BUNDLED = listOf(
         ".claude-plugin/plugin.json", "commands/merge.md", "commands/push.md", "commands/pull.md",
-        "scripts/git-merge-lock.sh"
+        "scripts/git-merge-lock.sh", "hooks/hooks.json", "hooks/register.ts"
     )
 
     /**
-     * The Claude Code plugin bundled in this jar (commands /overclauditor:merge, :push, :pull),
+     * The Claude Code plugin bundled in this jar (commands /overclauditor:merge, :push, :pull, and the
+     * hooks module that runs the model dropdown and session naming inside the session),
      * unpacked into [dataDir] and passed to each session with --plugin-dir. Nothing goes into
      * ~/.claude; it is rewritten only when the bundled copy changes. Null if unpacking failed.
      */

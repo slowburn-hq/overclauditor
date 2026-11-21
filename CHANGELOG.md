@@ -6,6 +6,12 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 ## 0.7.30-oc
 
 ### Added
+- The model dropdown and the automatic session naming run inside the session (a bundled hooks
+  module, `claude-plugin/hooks`) instead of typing `/model` and `/rename` into the terminal: the
+  prompt box and a half-written draft stay as they are, and no model picker opens. The model is
+  set for that session only (Claude saves it as the default; the plugin puts the old default back
+  in ~/.claude/settings.json). An older Claude Code without mods keeps the typed route. The
+  effort dropdown still uses the picker (Claude has no setting a mod can change for it).
 - Tab badge: ◐ while subagents or background commands (`run_in_background`, read from the
   process tree: Claude Code has no hook for their end) still run after the turn ends (it used to look finished), ✓ when
   a turn finishes until you look at the tab, a red ! for a new error; each state has its own

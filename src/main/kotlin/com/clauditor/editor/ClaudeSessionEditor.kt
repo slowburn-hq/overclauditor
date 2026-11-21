@@ -302,6 +302,7 @@ class ClaudeSessionEditor(
             ?: (file.sessionId == null || isFork || isNewWorktree)
         val monitoringId = adopted?.monitoringId ?: file.sessionId ?: "new-${System.nanoTime()}"
         val statusFile = adopted?.statusFile ?: statusService.createStatusFilePath(monitoringId)
+        hookBase = statusFile
         val notifyFile = adopted?.notifyFile ?: statusService.createNotifyFilePath(monitoringId)
         if (adopted == null) statusService.resetAgents(monitoringId, notifyFile)
 
@@ -1431,7 +1432,7 @@ class ClaudeSessionEditor(
         combo.addActionListener {
             if (updating) return@addActionListener
             val selected = combo.selectedItem as? String ?: return@addActionListener
-            pickForSession("model", selected)
+            if (hookLive()) setModelInSession(selected) else pickForSession("model", selected)
         }
 
         // Sync selection when status updates report a different model
@@ -1534,6 +1535,63 @@ class ClaudeSessionEditor(
      * ("s"). So open the picker, step to [target] reading the screen after each key, press s.
      * Anything unexpected: Esc out and say so, never fall back to saving a default.
      */
+    // ---- In-session route: the bundled hooks module (claude-plugin/hooks) runs the request ----
+    // Nothing is typed, so the prompt box and the user's draft stay as they are.
+
+    /** The tab's status file; the hooks module reads `<it>.cmd` and answers in `<it>.cmd.done`. */
+    @Volatile private var hookBase: Path? = null
+    private val hookLock = Any()
+
+    /** The module wrote `<status file>.hook` at session start: it is loaded (a CLI with mods). */
+    private fun hookLive(): Boolean = hookBase?.let { Files.exists(Path.of("$it.hook")) } == true
+
+    /** One request to the hooks module, waited on (never on the EDT): its ok, or null with no answer in time. */
+    private fun viaHook(kind: String, value: String, timeoutMs: Long = 5000): Boolean? = synchronized(hookLock) {
+        val base = hookBase ?: return null
+        val cmd = Path.of("$base.cmd")
+        val done = Path.of("$base.cmd.done")
+        val seq = System.nanoTime().toString()
+        try {
+            Files.deleteIfExists(done)
+            val tmp = Path.of("$base.cmd.tmp")
+            val req = com.google.gson.JsonObject().apply { addProperty("seq", seq); addProperty("kind", kind); addProperty("value", value) }
+            Files.writeString(tmp, req.toString())
+            Files.move(tmp, cmd, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (System.currentTimeMillis() < deadline) {
+                Thread.sleep(100)
+                val answer = try { com.google.gson.JsonParser.parseString(Files.readString(done)).asJsonObject } catch (_: Exception) { null }
+                if (answer?.get("seq")?.asString != seq) continue
+                Files.deleteIfExists(cmd)
+                Files.deleteIfExists(done)
+                if (answer.get("ok")?.asBoolean != true) log.warn("hooks module refused $kind $value: ${answer.get("error")?.asString}")
+                return answer.get("ok")?.asBoolean == true
+            }
+            Files.deleteIfExists(cmd)
+            null
+        } catch (e: Exception) {
+            log.warn("hooks module request $kind failed", e)
+            null
+        }
+    }
+
+    /** Model for THIS session: set through Claude's settings, then the user's saved default put back. */
+    private fun setModelInSession(target: String) {
+        com.clauditor.util.ClauditorExecutor.submit {
+            val default = com.clauditor.util.UserModelDefault.read()
+            val ok = viaHook("model", target)
+            if (ok == null) Thread.sleep(3000)  // a late answer still saves the default: wait it out
+            val restored = com.clauditor.util.UserModelDefault.restore(default)
+            if (ok != true || !restored) ApplicationManager.getApplication().invokeLater {
+                showNotification(
+                    if (ok != true) "Couldn't set model to $target for this session"
+                    else "Model set to $target, but the default in ~/.claude/settings.json couldn't be put back to ${default ?: "none"}",
+                    NotificationType.WARNING
+                )
+            }
+        }
+    }
+
     private fun pickForSession(kind: String, target: String) {
         sendCommand("/$kind\r")
         com.clauditor.util.ClauditorExecutor.submit {
@@ -1830,7 +1888,11 @@ class ClaudeSessionEditor(
         val e = com.clauditor.services.TitleStore.get(sid) ?: return
         pendingName = null
         com.clauditor.services.TitleStore.put(sid, e.copy(named = name))
-        sendCommand("/rename ${name.replace(Regex("\\s+"), " ").trim()}\r")
+        val clean = name.replace(Regex("\\s+"), " ").trim()
+        if (!hookLive()) { sendCommand("/rename $clean\r"); return }
+        com.clauditor.util.ClauditorExecutor.submit {
+            if (viaHook("rename", clean) == null) sendCommand("/rename $clean\r")
+        }
     }
 
     private fun noteWorktree(wt: String) {
