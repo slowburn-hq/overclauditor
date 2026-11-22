@@ -2310,9 +2310,29 @@ class ClaudeSessionEditor(
             return Color.getHSBColor((1f - f) * 120f / 360f, 0.70f, 0.85f)
         }
 
-        /** The worktree a cwd is in ("" for the main checkout), either slash style. */
-        internal fun worktreeOf(cwd: String): String =
-            Regex("[/\\\\]\\.claude[/\\\\]worktrees[/\\\\]([^/\\\\]+)").find(cwd)?.groupValues?.get(1) ?: ""
+        /**
+         * The worktree a cwd is in ("" for the main checkout), either slash style: its folder
+         * name. An Agent-tool worktree's folder is a generated `agent-<hex>` id, so it goes by its
+         * branch once the agent has named one (user, 2026-11-21: a tab read "agent-a2c7…" for
+         * branch `fable-explosion`); the default `worktree-agent-<hex>` branch leaves the folder.
+         */
+        internal fun worktreeOf(cwd: String, branchOf: (String) -> String? = ::branchOf): String {
+            val m = Regex("^(.*?[/\\\\]\\.claude[/\\\\]worktrees[/\\\\])([^/\\\\]+)").find(cwd) ?: return ""
+            val folder = m.groupValues[2]
+            if (!AGENT_FOLDER.matches(folder)) return folder
+            val branch = branchOf(m.groupValues[1] + folder)
+            return if (branch.isNullOrBlank() || branch == "worktree-$folder") folder else branch
+        }
+        private val AGENT_FOLDER = Regex("^agent-[0-9a-f]{8,}$")
+
+        /** The branch checked out in the worktree at [dir], from its `.git` file and HEAD; null if detached or unreadable. */
+        private fun branchOf(dir: String): String? = try {
+            val gitFile = java.nio.file.Path.of(dir, ".git")
+            val gitDir = java.nio.file.Files.readString(gitFile).trim().removePrefix("gitdir:").trim()
+                .let { gitFile.parent.resolve(it) }
+            java.nio.file.Files.readString(gitDir.resolve("HEAD")).trim()
+                .takeIf { it.startsWith("ref: refs/heads/") }?.removePrefix("ref: refs/heads/")
+        } catch (_: Exception) { null }
 
         private const val MIN_SUMMARY_FONT = 9f
 

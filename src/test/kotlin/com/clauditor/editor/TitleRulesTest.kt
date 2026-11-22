@@ -85,4 +85,30 @@ class SessionNameTest {
 class WorktreeNameTest {
     @Test fun `the worktree folder names the session, not the branch`() =
         assertEquals("hull3d-test", ClaudeSessionEditor.worktreeOf("/Users/x/RiderProjects/EmberSkies/.claude/worktrees/hull3d-test/game"))
+
+    private val agentCwd = "/Users/x/RiderProjects/EmberSkies/.claude/worktrees/agent-a2c7d82f80b077b33/game"
+
+    @Test fun `an agent worktree goes by the branch its agent named`() =
+        assertEquals("fable-explosion", ClaudeSessionEditor.worktreeOf(agentCwd) { "fable-explosion" })
+
+    @Test fun `an agent worktree on its default branch keeps the folder`() =
+        assertEquals("agent-a2c7d82f80b077b33", ClaudeSessionEditor.worktreeOf(agentCwd) { "worktree-agent-a2c7d82f80b077b33" })
+
+    @Test fun `an agent worktree with no readable branch keeps the folder`() =
+        assertEquals("agent-a2c7d82f80b077b33", ClaudeSessionEditor.worktreeOf(agentCwd) { null })
+
+    @Test fun `a named worktree never reads its branch`() =
+        assertEquals("hull3d-test", ClaudeSessionEditor.worktreeOf("/w/.claude/worktrees/hull3d-test") { error("read") })
+
+    @Test fun `windows slashes resolve the agent branch too`() =
+        assertEquals("fable-explosion", ClaudeSessionEditor.worktreeOf("C:\\w\\.claude\\worktrees\\agent-a2c7d82f80b077b33") { "fable-explosion" })
+
+    @Test fun `the real worktree's branch is read from its git file`() {
+        val root = kotlin.io.path.createTempDirectory()
+        val wt = root.resolve(".claude/worktrees/agent-a2c7d82f80b077b33").also { java.nio.file.Files.createDirectories(it) }
+        val gitDir = root.resolve(".git/worktrees/agent-a2c7d82f80b077b33").also { java.nio.file.Files.createDirectories(it) }
+        java.nio.file.Files.writeString(wt.resolve(".git"), "gitdir: $gitDir\n")
+        java.nio.file.Files.writeString(gitDir.resolve("HEAD"), "ref: refs/heads/fable-explosion\n")
+        assertEquals("fable-explosion", ClaudeSessionEditor.worktreeOf(wt.resolve("game").toString()))
+    }
 }
