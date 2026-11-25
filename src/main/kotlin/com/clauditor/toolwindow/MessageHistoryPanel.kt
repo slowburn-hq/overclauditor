@@ -125,9 +125,14 @@ class MessageHistoryPanel(
     private fun loadMessages() {
         val sessionId = sessionIdProvider() ?: return
         val cwd = workingDirProvider() ?: project.basePath ?: return
-        val jsonlPath = ClaudePathEncoder.projectDirCandidates(cwd)
-            .map { it.resolve("$sessionId.jsonl") }
-            .firstOrNull { Files.exists(it) } ?: return
+        // A session that entered a worktree mid-way keeps writing its transcript under the
+        // project dir it STARTED in, not the worktree's, so fall back to wherever it lives.
+        val jsonlPath = lastPath?.takeIf { it.fileName.toString() == "$sessionId.jsonl" && Files.exists(it) }
+            ?: ClaudePathEncoder.projectDirCandidates(cwd)
+                .map { it.resolve("$sessionId.jsonl") }
+                .firstOrNull { Files.exists(it) }
+            ?: com.clauditor.util.SessionSettings.locate(sessionId, null)
+            ?: return
 
         // A different transcript (session linked or rebound) invalidates the tail state.
         if (jsonlPath != lastPath) {

@@ -66,6 +66,9 @@ Clauditor 0.7.30 (https://github.com/bdkent/clauditor).
 - The Commit button is gone; caches moved to the IDE system folder and are removed on uninstall.
 
 ### Fixed
+- Messages sidebar: a session that moved into a worktree mid-way (EnterWorktree) lists its
+  messages again. Its transcript stays under the project it started in; the panel only looked
+  under the worktree's.
 - Session tabs reopen after a plugin update, a restart and a fresh start; only a tab you
   close yourself (the X, Cmd+W, a Close menu item) stays closed. Tabs closed by an update,
   Rider quitting or the project closing used to drop off the reopen list.
